@@ -1,0 +1,18 @@
+#-----------------------------------------------------------
+#      DEPENDENCIES & DEFAULT PARAMETERS FOR METAMIXER
+#-----------------------------------------------------------
+# NOTE: Do NOT quote values unless quotation is part of it
+#  ex.1: var=test 1; NOT var="test 1"
+#  ex.2: var=test "test" test; NOT "test \"test\" test"
+
+--- GENERAL DEPENDENCIES
+sqlite3=/opt/sqlite-tools/sqlite3
+rscript=/opt/R/4.0.2/bin/Rscript
+reformat=/opt/bbmap/reformat.sh
+fasterq=/opt/sratoolkit.2.10.8/bin/fasterq-dump
+sraDownloadFolder=
+
+--- METAMIXER.SH
+metaMixerMetaData=TRUE
+metaMixerVerbose=TRUE
+metaMixerTemp=

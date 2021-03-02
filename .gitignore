@@ -1,0 +1,6 @@
+dataAndScripts/testData
+*.Rproj
+.Rproj.user
+*.RData
+*.Rhistory
+**.fastq.gz
