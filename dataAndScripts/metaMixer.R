@@ -36,8 +36,9 @@ tempFolder = formatPath(as.character(args[[7]]))
 runId = as.integer(args[[8]])
 
 #Grab the location of the reformat script from the settings file
-reformatScript = system(sprintf("grep -oP \"reformat\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
-                                baseFolder), intern = T)
+reformatScript = system(sprintf(
+  "grep -oP \"reformat\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
+  baseFolder), intern = T)
 
 #Grab the location of the sraDownloadFolder from the settings file
 sraDownloadFolder = suppressWarnings(
@@ -63,11 +64,14 @@ dir.create(tempFolder)
 
 #Get the readcounts of previous files from the db in case the files are used again (saves time)
 myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/metaMixer.db", baseFolder))
-readCounts = dbGetQuery(myConn, "SELECT f.*, d.readCount FROM seqFiles as f, seqData as d WHERE f.seqId = d.seqId") %>% 
+readCounts = dbGetQuery(
+  myConn, 
+  "SELECT f.*, d.readCount FROM seqFiles as f, seqData as d WHERE f.seqId = d.seqId") %>% 
   select(-folder) %>% mutate(fileSize = as.numeric(fileSize))
 dbDisconnect(myConn)
 
-newLogs = data.frame(timeStamp = as.integer(Sys.time()), actionId = 1, actionName = "Start Mixing")
+newLogs = data.frame(timeStamp = as.integer(Sys.time()), actionId = 1, 
+                     actionName = "Start Mixing")
 
 tryCatch({
   
@@ -83,7 +87,8 @@ tryCatch({
     mutate(across(where(is.character), function(x) str_trim(x)))
   
   #Check that sum of RA = 1
-  sumRA = ifelse(sum(files$relativeAbundance) != 1, "*** The sum of relative abundances is not 1", "")
+  sumRA = ifelse(sum(files$relativeAbundance) != 1, 
+                 "*** The sum of relative abundances is not 1", "")
   
   #Type combo check
   totalI = sum(str_detect(files$type, "i|I"))
@@ -142,7 +147,7 @@ tryCatch({
     filter(filePath != "") %>% 
     mutate(modDate = file.info(filePath)$mtime %>% as.character(), 
            correctType = str_detect(filePath, "\\.fastq\\.gz$|\\.fastq$"),
-           getFromSRA = !is.na(getFromSRA)
+           getFromSRA = ifelse(getFromSRA == "", NA, getFromSRA)
            )
   
   #Check if files are unique
@@ -151,21 +156,24 @@ tryCatch({
   
   uniqueFiles = ifelse(length(uniqueFiles) != length(allFiles), 
                        paste0("*** The following file names are duplicated:\n", 
-                              paste(names(table(allFiles))[table(allFiles) > 1], collapse = "\n")), 
+                              paste(names(table(allFiles))[table(allFiles) > 1], 
+                                    collapse = "\n")), 
                        "")
   
   #Get all the missing files
-  missing = c(files %>% filter(is.na(modDate) & !getFromSRA) %>% pull(filePath) %>% unique())
+  missing = c(files %>% filter(is.na(modDate) & is.na(getFromSRA)) %>% 
+                pull(filePath) %>% unique())
   
   missing = ifelse(length(missing) > 0, 
-                   paste0("*** The following files are missing\n", paste(missing, collapse = "\n")), 
+                   paste0("*** The following files are missing\n", 
+                          paste(missing, collapse = "\n")), 
                    "")
   
   #Check for incorrect file types
   incorrectType = files %>% filter(!correctType) %>% pull(filePath) %>% unique()
-  incorrectType = ifelse(length(incorrectType) > 0,paste0("*** The following files are not in fastq or fastq.gz format\n", 
-                         paste(incorrectType, collapse = "\n")), 
-                         "")
+  incorrectType = ifelse(length(incorrectType) > 0,
+                         paste0("*** The following files are not in fastq or fastq.gz format\n", 
+                         paste(incorrectType, collapse = "\n")), "")
   files = files %>% select(-correctType)
   
   #Paste everything together
@@ -213,7 +221,8 @@ tryCatch({
     
     #Add the modDates
     files = files %>% mutate(
-      modDate = ifelse(is.na(modDate), file.info(filePath)$mtime %>% as.character() ,modDate)
+      modDate = ifelse(is.na(modDate), file.info(filePath)$mtime %>% 
+                         as.character() ,modDate)
     )
   }
   
@@ -252,7 +261,8 @@ tryCatch({
       myFile = files %>% filter(id == myId)
       
       if(verbose){
-        cat(format(Sys.time(), "%H:%M:%S"),"- Counting number of reads in",myFile$fileName, "... ")
+        cat(format(Sys.time(), "%H:%M:%S"),"- Counting number of reads in",
+            myFile$fileName, "... ")
       }
   
       #Count the lines in the file (4 lines = 1 read)
@@ -267,8 +277,10 @@ tryCatch({
       if(verbose){
         cat(nReads, "\n")
       }
-  	newLogs = rbind(newLogs, list(as.integer(Sys.time()), 5, 
-  	                              paste("Count reads for",paste(myFile$fileName, collapse = ", "))))
+  	newLogs = rbind(newLogs, 
+  	                list(as.integer(Sys.time()), 5, 
+  	                     paste("Count reads for",paste(myFile$fileName, 
+  	                                                   collapse = ", "))))
     }
    
   }
@@ -278,7 +290,8 @@ tryCatch({
   #********************************************************
   
   if(verbose){
-    cat(format(Sys.time(), "%H:%M:%S"),"- Calculate the number of reads needed from each file ... ")
+    cat(format(Sys.time(), "%H:%M:%S"),
+        "- Calculate the number of reads needed from each file ... ")
   }
   
   raData = files %>% group_by(id, type, relativeAbundance, readCount) %>% 
@@ -304,7 +317,8 @@ tryCatch({
   if(verbose){
     cat("done\n")
   }
-  newLogs = rbind(newLogs, list(as.integer(Sys.time()), 6, "Number of reads needed from each file calculated"))
+  newLogs = rbind(newLogs, list(as.integer(Sys.time()), 6, 
+                                "Number of reads needed from each file calculated"))
   
   # ---- Filter and merge the files ----
   #*************************************
@@ -317,7 +331,8 @@ tryCatch({
     
     fileNames = files %>% filter(id == toMerge$id[i]) %>% pull(fileName)
     if(verbose){
-      cat(format(Sys.time(), "%H:%M:%S"),"- Extracting reads from\n          ", paste(fileNames, collapse = "\n           "), "\n")
+      cat(format(Sys.time(), "%H:%M:%S"),"- Extracting reads from\n          ", 
+          paste(fileNames, collapse = "\n           "), "\n")
     }
     
     fullFile = floor(toMerge$fileNeeded[i])
@@ -350,7 +365,8 @@ tryCatch({
       partialReads = as.integer(partialReads[!is.na(partialReads)])
     }
     
-    toMerge$readCount[i] = floor(toMerge$fileNeeded[i]) * toMerge$readCount[i] + partialReads
+    toMerge$readCount[i] = floor(toMerge$fileNeeded[i]) * toMerge$readCount[i] + 
+      partialReads
     
     if(verbose){
       cat(format(Sys.time(),"%H:%M:%S ")," done\n")
@@ -380,15 +396,22 @@ tryCatch({
       outputFile = outputFile,
       readLimit = readLimit,
       totalReads = sum(raData$readsUsed),
-      fileData = raData %>% select(-readsNeeded) %>% left_join(files %>% select(-type, -relativeAbundance, -readCount), by = "id") %>% 
+      fileData = raData %>% select( -readsNeeded, -readsUsed) %>% 
+        left_join(
+          files %>% 
+            select(-type, -relativeAbundance, -readCount, -fileId), by = "id") %>% 
         group_by(across(c(-filePath, -modDate, -fileSize, -fileName))) %>%
         summarise(fileName1 = fileName[1], 
                   filePath1 = filePath[1], 
                   fileName2 = ifelse(is.na(fileName[2]), "", fileName[2]), 
-                  filePath2 = ifelse(is.na(filePath[2]), "", filePath[2]), .groups = "drop")
+                  filePath2 = ifelse(is.na(filePath[2]), "", filePath[2]), 
+                  .groups = "drop") %>% 
+        select(seqId, type:fileNeeded, readsUsed, sampleName, 
+               SRR = getFromSRA, fileName1:filePath2)
     )
   
-    write_json(metaData, paste0(str_extract(outputFile, ".*(?=\\.fastq\\.gz$)"), "_metaData.json"), pretty = T)
+    write_json(metaData, paste0(str_extract(outputFile, ".*(?=\\.fastq\\.gz$)"), 
+                                "_metaData.json"), pretty = T)
     
   }
   
@@ -427,7 +450,7 @@ tryCatch({
   newFiles = rbind(
     files %>%  filter(id %in% newFileIds),
     list(id = 0, type = "M", relativeAbundance = 1.0, 
-         getFromSRA = F, filePath = outputFile, 
+         getFromSRA = NA, filePath = outputFile, 
          sampleName = str_match(outputFile, "([^/]+).fastq.gz$")[,2],
          modDate = file.info(outputFile)$mtime %>% as.character(), 
          fileSize = file.info(outputFile)$size, 
@@ -469,7 +492,7 @@ tryCatch({
   #Insert the new files into seqData
   newSeqData = mixDetails %>% filter(newFile) %>% 
     group_by(seqId,sampleName,readCount) %>% 
-    summarise(SRR = sampleName[getFromSRA][1],.groups = "drop")
+    summarise(SRR = getFromSRA[1],.groups = "drop")
   
   q = dbSendQuery(myConn, "INSERT INTO seqData (seqId,sampleName,readCount,SRR) VALUES(?,?,?,?)",
               params = list(newSeqData$seqId, newSeqData$sampleName, 
@@ -508,8 +531,11 @@ finally = {
   newLogs$tool = "metaMixer.R"
 
   myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/metaMixer.db", baseFolder))
-  q = dbSendStatement(myConn, "INSERT INTO logs (runId,tool,timeStamp,actionId,actionName) VALUES (?,?,?,?,?)",
-                      params = unname(as.list(newLogs %>% select(runId,tool,timeStamp,actionId,actionName))))
+  q = dbSendStatement(
+    myConn, 
+    "INSERT INTO logs (runId,tool,timeStamp,actionId,actionName) VALUES (?,?,?,?,?)",
+    params = unname(as.list(newLogs %>% 
+                              select(runId,tool,timeStamp,actionId,actionName))))
   dbClearResult(q)
   dbDisconnect(myConn)
   
