@@ -2,11 +2,8 @@
 args = commandArgs(trailingOnly=TRUE)
 
 #Load packages
-suppressPackageStartupMessages(library(stringr))
-suppressPackageStartupMessages(library(tidyr))
-suppressPackageStartupMessages(library(readr))
+suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(jsonlite))
-suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(RSQLite))
 
 options(digits = 10)

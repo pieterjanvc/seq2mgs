@@ -1,6 +1,8 @@
 dataAndScripts/testData
+dataAndScripts/*test*
 *.Rproj
 .Rproj.user
 *.RData
 *.Rhistory
 **.fastq.gz
+*test*
