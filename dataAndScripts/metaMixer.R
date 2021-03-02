@@ -432,8 +432,8 @@ tryCatch({
          modDate = file.info(outputFile)$mtime %>% as.character(), 
          fileSize = file.info(outputFile)$size, 
          fileName = str_extract(outputFile, "[^/]+.fastq.gz$"), 
-         fileId = NA,
-         seqId = NA,
+         fileId = as.integer(NA),
+         seqId = as.integer(NA),
          readCount = sum(raData$readsUsed),
          readsUsed = sum(raData$readsUsed))) %>% 
     group_by(id) %>% 
@@ -446,10 +446,14 @@ tryCatch({
   newSeqId = data.frame(id = newSeqId, 
                     newSeq = nextSeqId:(nextSeqId + length(newSeqId) - 1))
   newFiles = newFiles %>% left_join(newSeqId, by = "id") %>% 
-    mutate(seqId = ifelse(is.na(seqId), newSeq, seqId))
+    mutate(
+      newFile = is.na(seqId),
+      seqId = ifelse(newFile, newSeq, seqId)
+    ) %>% select(-newSeq)
   
   #generate the data to fill the mixDetails table
-  mixDetails = rbind(newFiles, files %>% filter(!id %in% newFileIds)) %>% 
+  mixDetails = rbind(newFiles, files %>% filter(!id %in% newFileIds) %>% 
+                       mutate(newFile = F)) %>% 
     left_join(raData %>% select(-relativeAbundance, -type, -readCount, -readsUsed), 
               by = "id") %>% mutate(runId = runId)
   
@@ -463,7 +467,7 @@ tryCatch({
   dbClearResult(q)
   
   #Insert the new files into seqData
-  newSeqData = mixDetails %>% 
+  newSeqData = mixDetails %>% filter(newFile) %>% 
     group_by(seqId,sampleName,readCount) %>% 
     summarise(SRR = sampleName[getFromSRA][1],.groups = "drop")
   
@@ -473,6 +477,7 @@ tryCatch({
   dbClearResult(q)
   
   #Insert the new files into seqFiles
+  newFiles = newFiles %>% filter(newFile)
   q = dbSendQuery(myConn, "INSERT INTO \
                   seqFiles (fileId,seqId,fileName,folder,modDate,fileSize) \
                   VALUES(?,?,?,?,?,?)",
