@@ -6,3 +6,5 @@ dataAndScripts/*test*
 *.Rhistory
 **.fastq.gz
 *test*
+**.db
+dataAndScripts/lastError

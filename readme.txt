@@ -63,7 +63,8 @@ This is a .csv file with the following columns
  - readFile: full path to the first read file (fastq.gz format)
  - readFile2: full path to the second read file (fastq.gz format)
     Leave empty in case of 1 interleaved data file
- - getFromSRA: the file is downloaded from SRA (leave readFile(2) blank)
+ - getFromSRA: fill in the SRR (leave readFile(2) blank)
+    The file will be downloaded from SRA 
  - Any other columns will be ignored, but put in the meta-data JSON file if generated
 
 -- END METAMIXER.SH ---

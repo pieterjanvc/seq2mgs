@@ -62,7 +62,7 @@ tempFolder = paste0(tempFolder, "/", tempName)
 dir.create(tempFolder)
 
 #Get the readcounts of previous files from the db in case the files are used again (saves time)
-myConn = dbConnect(SQLite(), sprintf("%s/metaMixer.db", baseFolder))
+myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/metaMixer.db", baseFolder))
 readCounts = dbGetQuery(myConn, "SELECT f.*, d.readCount FROM seqFiles as f, seqData as d WHERE f.seqId = d.seqId") %>% 
   select(-folder) %>% mutate(fileSize = as.numeric(fileSize))
 dbDisconnect(myConn)
@@ -130,6 +130,7 @@ tryCatch({
     }
   } else {
     getFromSRA = NA
+    files$getFromSRA = NA
   }
   
   
@@ -137,10 +138,11 @@ tryCatch({
     mutate(id = 1:n(), 
            sampleName = ifelse(sampleName == "", paste0("sample", 1:n()), sampleName)) %>% 
     pivot_longer(c(readFile, readFile2), values_to = "filePath") %>% 
-    select(id, type, relativeAbundance, filePath, sampleName) %>% 
+    select(id, type, relativeAbundance, getFromSRA, filePath, sampleName) %>% 
     filter(filePath != "") %>% 
     mutate(modDate = file.info(filePath)$mtime %>% as.character(), 
-           correctType = str_detect(filePath, "\\.fastq\\.gz$|\\.fastq$")
+           correctType = str_detect(filePath, "\\.fastq\\.gz$|\\.fastq$"),
+           getFromSRA = !is.na(getFromSRA)
            )
   
   #Check if files are unique
@@ -153,7 +155,7 @@ tryCatch({
                        "")
   
   #Get all the missing files
-  missing = c(files %>% filter(is.na(modDate)) %>% pull(filePath) %>% unique())
+  missing = c(files %>% filter(is.na(modDate) & !getFromSRA) %>% pull(filePath) %>% unique())
   
   missing = ifelse(length(missing) > 0, 
                    paste0("*** The following files are missing\n", paste(missing, collapse = "\n")), 
@@ -199,9 +201,9 @@ tryCatch({
       } else {
         cat("\n          downloading and zipping", SRR, "...")
         system(sprintf(
-          "%s %s -O %s -t %s/temp; find %s/%s* -execdir %s '{}' ';'",
+          "%s %s -O %s -t %s/temp; find %s/%s_1.fastq %s/%s_2.fastq -execdir %s '{}' ';'",
           fasterq, SRR, sraDownloadFolder, sraDownloadFolder, 
-          sraDownloadFolder, SRR, zipMethod), intern = F)
+          sraDownloadFolder, SRR, sraDownloadFolder, SRR, zipMethod), intern = F)
         cat("done\n")
         newLogs = rbind(newLogs, list(as.integer(Sys.time()), 12, 
                                       paste(SRR, "downloaded successfully")))
@@ -307,8 +309,9 @@ tryCatch({
   # ---- Filter and merge the files ----
   #*************************************
   toMerge = raData %>% left_join(files %>% select(id, filePath), by = "id") %>% 
-    group_by(id, fileNeeded) %>% 
-    summarise(file1 = filePath[1], file2 = ifelse(is.na(filePath[2]), "", filePath[2]), .groups = 'drop')
+    group_by(id, fileNeeded, readCount) %>% 
+    summarise(file1 = filePath[1], 
+              file2 = ifelse(is.na(filePath[2]), "", filePath[2]), .groups = 'drop')
   
   for(i in 1:nrow(toMerge)){
     
@@ -337,12 +340,17 @@ tryCatch({
     }
     
     #Filter the fraction of reads needed 
+    partialReads = 0
     if(partialFile != 0){
-      system(sprintf(
-        "%s --samplerate=%0.10f in1=%s in2=%s out=%s/tempFile%i_partial.fastq.gz 2>/dev/null",
+      partialReads = system(sprintf(
+        "%s --samplerate=%0.10f in1=%s in2=%s out=%s/tempFile%i_partial.fastq.gz 2>&1",
         reformatScript, partialFile, toMerge$file1[i], toMerge$file2[i],
-        tempFolder, i), intern = F)
+        tempFolder, i), intern = T)
+      partialReads = str_extract(partialReads, "\\d+(?=\\sreads\\s\\()")
+      partialReads = as.integer(partialReads[!is.na(partialReads)])
     }
+    
+    toMerge$readCount[i] = floor(toMerge$fileNeeded[i]) * toMerge$readCount[i] + partialReads
     
     if(verbose){
       cat(format(Sys.time(),"%H:%M:%S ")," done\n")
@@ -351,6 +359,10 @@ tryCatch({
   	paste("Reads extracted from", paste(fileNames, collapse = ", "))))
     
   }
+  
+  #Add the number of used reads 
+  raData = raData %>% left_join(toMerge %>% select(id, readsUsed = readCount), by = "id")
+  files = files %>% left_join(toMerge %>% select(id, readsUsed = readCount), by = "id")
   
   #Merge the temp files into the final one
   if(verbose){
@@ -361,15 +373,14 @@ tryCatch({
   
   #Write the meta data as JSON (if requested)
   if(metaData){
-    raData$readsNeeded = as.integer(raData$readsNeeded)
-    
+
     metaData = list(
       timestamp = Sys.time() %>% as.character(),
       inputFile = inputFile,
       outputFile = outputFile,
       readLimit = readLimit,
-      totalReads = sum(raData$readsNeeded),
-      fileData = raData %>% left_join(files %>% select(-type, -relativeAbundance, -readCount), by = "id") %>% 
+      totalReads = sum(raData$readsUsed),
+      fileData = raData %>% select(-readsNeeded) %>% left_join(files %>% select(-type, -relativeAbundance, -readCount), by = "id") %>% 
         group_by(across(c(-filePath, -modDate, -fileSize, -fileName))) %>%
         summarise(fileName1 = fileName[1], 
                   filePath1 = filePath[1], 
@@ -399,10 +410,12 @@ tryCatch({
   #******************************
   
   #Open the connection to the DB
-  myConn = dbConnect(SQLite(), sprintf("%s/metaMixer.db", baseFolder))
+  myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/metaMixer.db", baseFolder))
   
   #Get the next unique IDs
-  nextFileId = ifelse(nrow(readCounts) == 0, 1, max(readCounts$fileId) + 1)
+  # nextFileId = ifelse(nrow(readCounts) == 0, 1, max(readCounts$fileId) + 1)
+  nextFileId = dbGetQuery(myConn, "SELECT max(fileId) as val FROM seqFiles")$val
+  nextFileId = ifelse(is.na(nextFileId), 1, nextFileId + 1)
   nextSeqId = dbGetQuery(myConn, "SELECT max(seqId) as val FROM seqData")$val
   nextSeqId = ifelse(is.na(nextSeqId), 1, nextSeqId + 1)
   
@@ -412,48 +425,70 @@ tryCatch({
   
   #Make a table with all files that are new and need to be inserted in seqData and seqFiles
   newFiles = rbind(
-    files %>% select(-fileId, -seqId) %>%  filter(id %in% newFileIds),
-    list(id = 0, type = "M", relativeAbundance = 0, filePath = outputFile, 
+    files %>%  filter(id %in% newFileIds),
+    list(id = 0, type = "M", relativeAbundance = 1.0, 
+         getFromSRA = F, filePath = outputFile, 
          sampleName = str_match(outputFile, "([^/]+).fastq.gz$")[,2],
          modDate = file.info(outputFile)$mtime %>% as.character(), 
          fileSize = file.info(outputFile)$size, 
          fileName = str_extract(outputFile, "[^/]+.fastq.gz$"), 
-         readCount = sum(raData$readsNeeded))) %>% 
-    mutate(fileId = nextFileId:(nextFileId + n() - 1)) %>% group_by(id) %>% 
-    mutate(seqId = id + nextSeqId + 1, 
-           filePath = str_remove(filePath, "[^/]+.fastq.gz$")) %>% ungroup()
+         fileId = NA,
+         seqId = NA,
+         readCount = sum(raData$readsUsed),
+         readsUsed = sum(raData$readsUsed))) %>% 
+    group_by(id) %>% 
+    mutate(filePath = str_remove(filePath, "[^/]+.fastq.gz$")) %>% ungroup()
+  
+  #Add the new seqId and fileId
+  newFiles[is.na(newFiles$fileId),"fileId"] = 
+    nextFileId:(nextFileId + sum(is.na(newFiles$fileId)) - 1)
+  newSeqId = unique(unlist(newFiles[is.na(newFiles$seqId),"id"]))
+  newSeqId = data.frame(id = newSeqId, 
+                    newSeq = nextSeqId:(nextSeqId + length(newSeqId) - 1))
+  newFiles = newFiles %>% left_join(newSeqId, by = "id") %>% 
+    mutate(seqId = ifelse(is.na(seqId), newSeq, seqId))
   
   #generate the data to fill the mixDetails table
   mixDetails = rbind(newFiles, files %>% filter(!id %in% newFileIds)) %>% 
-    left_join(raData %>% select(-relativeAbundance, -type, -readCount), by = "id") %>% 
-    group_by(id, type, relativeAbundance, readsNeeded, fileNeeded, seqId) %>% summarise(.groups = "drop") %>% 
-    mutate(metaFileSeqId = seqId[id == 0], runId = runId) %>% filter(id != 0)
+    left_join(raData %>% select(-relativeAbundance, -type, -readCount, -readsUsed), 
+              by = "id") %>% mutate(runId = runId)
   
   #If the output file file will be overwritten, delete old one first from the database
   q = dbSendQuery(myConn,"PRAGMA foreign_keys = ON")
   dbClearResult(q)
   q = dbSendQuery(myConn,"DELETE FROM seqData WHERE seqId = 
   (SELECT seqId FROM seqFiles WHERE fileName = ? AND folder = ?)", 
-                  params = list(newFiles$fileName[nrow(newFiles)], newFiles$filePath[nrow(newFiles)]))
+                  params = list(newFiles$fileName[nrow(newFiles)], 
+                                newFiles$filePath[nrow(newFiles)]))
   dbClearResult(q)
   
   #Insert the new files into seqData
-  newSeqData = newFiles %>% group_by(seqId,sampleName,readCount) %>% summarise(.groups = "drop")
-  q = dbSendQuery(myConn, "INSERT INTO seqData (seqId,sampleName,readCount) VALUES(?,?,?)",
-              params = list(newSeqData$seqId,
-                            newSeqData$sampleName, newSeqData$readCount))
+  newSeqData = mixDetails %>% 
+    group_by(seqId,sampleName,readCount) %>% 
+    summarise(SRR = sampleName[getFromSRA][1],.groups = "drop")
+  
+  q = dbSendQuery(myConn, "INSERT INTO seqData (seqId,sampleName,readCount,SRR) VALUES(?,?,?,?)",
+              params = list(newSeqData$seqId, newSeqData$sampleName, 
+                            newSeqData$readCount, newSeqData$SRR))
   dbClearResult(q)
   
   #Insert the new files into seqFiles
-  q = dbSendQuery(myConn, "INSERT INTO seqFiles VALUES(?,?,?,?,?,?)",
+  q = dbSendQuery(myConn, "INSERT INTO \
+                  seqFiles (fileId,seqId,fileName,folder,modDate,fileSize) \
+                  VALUES(?,?,?,?,?,?)",
               params = list(newFiles$fileId, newFiles$seqId, newFiles$fileName, 
                             newFiles$filePath, newFiles$modDate, newFiles$fileSize))
   dbClearResult(q)
   
   #Add the meta data
-  q = dbSendQuery(myConn, "INSERT INTO mixDetails VALUES(?,?,?,?,?)",
+  mixDetails = mixDetails %>% 
+    select(runId, seqId,type,relativeAbundance,readsUsed) %>% distinct()
+  
+  q = dbSendQuery(myConn, "INSERT INTO mixDetails \
+                 (runId,seqId,type,relativeAbundance,nReadsUsed) \
+                 VALUES(?,?,?,?,?)",
                   params = list(mixDetails$runId, mixDetails$seqId, toupper(mixDetails$type),
-                                mixDetails$relativeAbundance, mixDetails$readsNeeded))
+                                mixDetails$relativeAbundance, mixDetails$readsUsed))
   dbClearResult(q)
   dbDisconnect(myConn)
   
@@ -467,7 +502,7 @@ finally = {
   newLogs$runId = runId
   newLogs$tool = "metaMixer.R"
 
-  myConn = dbConnect(SQLite(), sprintf("%s/metaMixer.db", baseFolder))
+  myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/metaMixer.db", baseFolder))
   q = dbSendStatement(myConn, "INSERT INTO logs (runId,tool,timeStamp,actionId,actionName) VALUES (?,?,?,?,?)",
                       params = unname(as.list(newLogs %>% select(runId,tool,timeStamp,actionId,actionName))))
   dbClearResult(q)

@@ -28,7 +28,7 @@ trap 'err_report ${LINENO}' ERR
 
 updateDBwhenError() {
 	#Update the DB
-    $sqlite3 "$baseFolder/metaMixer.db" \
+    $sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
 	"UPDATE scriptUse
 	SET end = '$(date '+%F %T')', status = 'error',
 	info = '$2'
@@ -113,13 +113,13 @@ else
 fi
 
 #Register the start of the script in the DB
-runId=$($sqlite3 "$baseFolder/metaMixer.db" \
-	"INSERT INTO scriptUse (pipelineId,scriptName,start,status) \
-	values(0,'metaMixer.sh','$(date '+%F %T')','running'); \
+runId=$($sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
+	"INSERT INTO scriptUse (scriptName,start,status) \
+	values('metaMixer.sh','$(date '+%F %T')','running'); \
 	SELECT runId FROM scriptUse WHERE runId = last_insert_rowid()")
 	
 #Save the arguments with which the script was run
-$sqlite3 "$baseFolder/metaMixer.db" \
+$sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
 	"INSERT INTO scriptArguments (runId,scriptName,argument,value)
 	VALUES($runId,'metaMixer.sh','inputFile', '$inputFile'),
 	($runId,'metaMixer.sh','outputFile', '$outputFile'),
@@ -144,7 +144,7 @@ if [ $verbose == T ]; then
 fi
 
 #Update the DB
-$sqlite3 "$baseFolder/metaMixer.db" \
+$sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
 	"UPDATE scriptUse
 	SET end = '$(date '+%F %T')', status = 'finished'
 	WHERE runId = $runId"
