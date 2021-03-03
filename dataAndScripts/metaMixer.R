@@ -5,6 +5,8 @@ args = commandArgs(trailingOnly=TRUE)
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(jsonlite))
 suppressPackageStartupMessages(library(RSQLite))
+suppressPackageStartupMessages(library(httr))
+
 
 options(digits = 10)
 sTime = Sys.time()
@@ -106,17 +108,17 @@ tryCatch({
   #Check if files need to be downloaded
   SRAexists = ""
   if(any(colnames(files) %in% "getFromSRA")){
-    files$SRAexists = sapply(
-      files$getFromSRA, function(x){
-        if(is.na(x)){
-          return(T)
-        } else {
-          any(str_detect(readLines(
-            sprintf("https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?run=%s", x)), 
-            "SRX"))
-        }
-      }
-    )
+    
+    cat("\n            Checking if SRA files are available ... ")
+    #Look up the SRR for the ones given
+    files$SRAexists = T
+    files$SRAexists[!is.na(files$getFromSRA)] = 
+      str_extract_all(
+        GET(paste0("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?",
+                   "db=sra&term=", paste(files$getFromSRA[!is.na(files$getFromSRA)],
+                                         collapse = "+"))) %>% 
+          content("text"), 
+        ".(?=\\</Count\\>)")[[1]][-1] == "1"
     
     #Check if the files exist
     if(!all(files$SRAexists)){
@@ -133,6 +135,8 @@ tryCatch({
       
       getFromSRA = unique(files$getFromSRA[!is.na(files$getFromSRA)])
     }
+    
+    cat("done\n            ")
   } else {
     getFromSRA = NA
     files$getFromSRA = NA
@@ -203,15 +207,19 @@ tryCatch({
     for(SRR in getFromSRA){
       if(all(file.exists(sprintf(paste0("%s/%s_",1:2,".fastq.gz"), 
                                  sraDownloadFolder, SRR)))){
-        cat("          ", SRR, "was already downloaded\n")
+        cat("          ",SRR, ": already downloaded\n")
         newLogs = rbind(newLogs, list(as.integer(Sys.time()), 11, 
                                       paste(SRR, "was already downloaded")))
       } else {
-        cat("\n          downloading and zipping", SRR, "...")
+        cat("          ",SRR, ": downloading ... ")
         system(sprintf(
-          "%s %s -O %s -t %s/temp; find %s/%s_1.fastq %s/%s_2.fastq -execdir %s '{}' ';'",
-          fasterq, SRR, sraDownloadFolder, sraDownloadFolder, 
+          "%s %s -O %s -t %s/temp 2>/dev/null", 
+          fasterq, SRR, sraDownloadFolder, sraDownloadFolder), intern = F)
+        cat("zipping ... ")
+        system(sprintf(
+          "find %s/%s_1.fastq %s/%s_2.fastq -execdir %s '{}' ';'",
           sraDownloadFolder, SRR, sraDownloadFolder, SRR, zipMethod), intern = F)
+        
         cat("done\n")
         newLogs = rbind(newLogs, list(as.integer(Sys.time()), 12, 
                                       paste(SRR, "downloaded successfully")))

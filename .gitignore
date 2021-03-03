@@ -1,5 +1,6 @@
 dataAndScripts/testData
 dataAndScripts/*test*
+temp/*
 *.Rproj
 .Rproj.user
 *.RData
