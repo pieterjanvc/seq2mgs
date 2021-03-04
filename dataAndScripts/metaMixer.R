@@ -88,6 +88,10 @@ tryCatch({
   files = read_csv(inputFile, col_names = T, col_types = cols()) %>%  
     mutate(across(where(is.character), function(x) str_trim(x)))
   
+  #Calculate the background RA if present
+  files = files %>% 
+    mutate(relativeAbundance = ifelse(str_detect(type, "i|I"), relativeAbundance, 
+                                      1 - sum(relativeAbundance[str_detect(type, "i|I")])))
   #Check that sum of RA = 1
   sumRA = ifelse(sum(files$relativeAbundance) != 1, 
                  "*** The sum of relative abundances is not 1", "")
