@@ -34,11 +34,15 @@ IMPORTANT: Update the paths to all dependencies in the 'settings.txt' file
 --- METAMIXER.SH ---
 Mix multiple isolate WGS files together to create artificial metagenomes 
 
-Arguments [h|i|o|r|m|t|f|v]
+Arguments [h|i|o|l|u|m|t|f|v]
  -h Read the help documentation
  -i The input file (.csv) containing all samples to be mixed
  -o The location to save the output file. Filename should end with a fastq.gz extension
- -r (optional) The max number of reads the mixed file should contain. 
+ -l (optional) The min number of reads the mixed file should contain. 
+     By default, the number of reads in the background file is chosen.
+     If no background file is present, the limit is the max sum of 
+	 the fractions needed from each isolate file.
+ -u (optional) The max number of reads the mixed file should contain. 
      By default, the number of reads in the background file is chosen.
      If no background file is present, the limit is the sum of 
 	 the fractions needed from each isolate file.

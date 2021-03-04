@@ -31,11 +31,12 @@ formatPath = function(path, endWithSlash = F){
 baseFolder = formatPath(as.character(args[[1]]))
 inputFile = as.character(args[[2]])
 outputFile = as.character(args[[3]])
-readLimit = as.integer(args[[4]])
-metaData = as.logical(args[[5]])
-verbose = as.logical(args[[6]])
-tempFolder = formatPath(as.character(args[[7]]))
-runId = as.integer(args[[8]])
+lowerLimit = as.numeric(args[[4]])
+upperLimit = as.numeric(args[[5]])
+metaData = as.logical(args[[6]])
+verbose = as.logical(args[[7]])
+tempFolder = formatPath(as.character(args[[8]]))
+runId = as.integer(args[[9]])
 
 #Grab the location of the reformat script from the settings file
 reformatScript = system(sprintf(
@@ -315,15 +316,23 @@ tryCatch({
   #Calculate the total number of reads
   totalReads = sum(raData$relativeAbundance * 100 * rpp)
   
-  #If a total is set, adjust the rpp
-  nReadsM = raData %>% filter(type == "B" | type == "b") %>% pull(readCount)
-  readLim = ifelse(readLimit == 0 & length(nReadsM) != 0, nReadsM, readLimit)
-  if(readLim != 0){
+  #If limits set, adjust the rpp
+  nReadsM = raData %>% filter(type == "B" | type == "b") %>% pull(readCount) %>% 
+    as.numeric()
+  readLimit = ifelse(length(nReadsM) != 0, nReadsM, totalReads)
+  
+  readLim = case_when(
+    upperLimit != 0 & (totalReads > upperLimit | readLimit > upperLimit) ~ upperLimit,
+    lowerLimit != 0 & (totalReads < lowerLimit| readLimit < lowerLimit) ~ lowerLimit,
+    TRUE ~ readLimit
+  )
+
+  if(readLim != totalReads){
     rpp = rpp * readLim / totalReads
   }
   
   #Caluclate the times each input file is needed
-  raData = raData %>% mutate(readsNeeded = relativeAbundance * 100 * rpp,
+  raData = raData %>% mutate(readsNeeded = as.integer(relativeAbundance * 100 * rpp),
                              fileNeeded = readsNeeded / readCount)
   
   if(verbose){

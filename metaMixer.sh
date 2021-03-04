@@ -36,7 +36,7 @@ updateDBwhenError() {
 }
 
 #Options when script is run
-while getopts ":hi:o:t:r:m:fv:" opt; do
+while getopts ":hi:o:t:l:u::m:fv:" opt; do
   case $opt in
 	h) echo -e "\n"
 	   awk '/--- metaMixer.SH ---/,/-- END metaMixer.SH ---/' $baseFolder/readme.txt 
@@ -49,7 +49,9 @@ while getopts ":hi:o:t:r:m:fv:" opt; do
     ;;
 	t) tempFolder=`realpath "${OPTARG}"`
     ;;
-	r) readLimit="${OPTARG}"
+	l) lowerLimit="${OPTARG}"
+    ;;
+	u) upperLimit="${OPTARG}"
     ;;
 	m) metaData="${OPTARG}"
     ;;
@@ -80,9 +82,15 @@ elif [ -f $outputFile ] && [ -z ${forceOverwrite+x} ]; then
 	echo -e "\n\e[91mThe output file already exists.\n Use -f option to force overwrite\e[0m"; exit 1;
 fi
 
-if [ -z ${readLimit+x} ]; then 
-	readLimit=0
-elif [[ ! $readLimit =~ ^[0-9]+$ ]]; then 
+if [ -z ${lowerLimit+x} ]; then 
+	lowerLimit=0
+elif [[ ! $lowerLimit =~ ^[0-9]+$ ]]; then 
+	echo -e "\n\e[91mThe read limit must be a positive integer\e[0m"; exit 1; 
+fi
+
+if [ -z ${upperLimit+x} ]; then 
+	upperLimit=0
+elif [[ ! $upperLimit =~ ^[0-9]+$ ]]; then 
 	echo -e "\n\e[91mThe read limit must be a positive integer\e[0m"; exit 1; 
 fi
 
@@ -124,7 +132,8 @@ $sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
 	VALUES($runId,'metaMixer.sh','inputFile', '$inputFile'),
 	($runId,'metaMixer.sh','outputFile', '$outputFile'),
 	($runId,'metaMixer.sh','tempFolder', '$tempFolder'),
-	($runId,'metaMixer.sh','readLimit', '$readLimit'),
+	($runId,'metaMixer.sh','upperLimit', '$upperLimit'),
+	($runId,'metaMixer.sh','lowerLimit', '$lowerLimit'),
 	($runId,'metaMixer.sh','metaData', '$metaData'),
 	($runId,'metaMixer.sh','forceOverwrite', '$forceOverwrite'),
 	($runId,'metaMixer.sh','verbose', '$verbose')"	
@@ -136,8 +145,8 @@ fi
 #Run the R script
 rPath=`grep -oP "rscript\s*=\s*\K(.*)" $baseFolder/settings.txt`
 $rPath $baseFolder/dataAndScripts/metaMixer.R \
-	$baseFolder $inputFile $outputFile $readLimit \
-	$metaData $verbose $tempFolder $runId
+	$baseFolder $inputFile $outputFile $lowerLimit \
+	$upperLimit $metaData $verbose $tempFolder $runId
 
 if [ $verbose == T ]; then
 	echo -e "\e[32m"`date "+%T"`" - Finished mixing reads\n\e[0m"

@@ -6,6 +6,8 @@ temp/*
 *.RData
 *.Rhistory
 **.fastq.gz
+**.fastq
+**.fasta
 *test*
 **.db
 dataAndScripts/lastError
