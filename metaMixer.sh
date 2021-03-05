@@ -67,6 +67,11 @@ done
 
 exec 2>$baseFolder/dataAndScripts/lastError
 
+#Check if the database is present (and thus setup script has been run at least once)
+if [ ! -f "$baseFolder/dataAndScripts/metaMixer.db" ]; then 
+	echo -e "\n\e[91mThe MetaMixer setup does not seem to be complete.\n Please run the setup.sh script to verify the installation\e[0m"; exit 1; 
+fi
+
 #Check all the input arguments
 if [ -z ${inputFile+x} ]; then 
 	echo -e "\n\e[91mNo input file found, type metaMixer -h for more info\e[0m"; exit 1; 
@@ -75,7 +80,7 @@ elif [ ! -f $inputFile ]; then
 fi
 
 if [ -z ${outputFile+x} ]; then 
-	echo -e "\n\e[91mNo output file specified.\n Use -o to specifiy one or type metaMixer -h for more info\e[0m"; exit 1;
+	echo -e "\n\e[91mNo output file specified.\n Use -o to specify one or type metaMixer -h for more info\e[0m"; exit 1;
 elif [ ! -d `dirname $outputFile` ]; then	
 	echo -e "\n\e[91mThe directory for the output file does not exist\e[0m"; exit 1;
 elif [ -f $outputFile ] && [ -z ${forceOverwrite+x} ]; then	
