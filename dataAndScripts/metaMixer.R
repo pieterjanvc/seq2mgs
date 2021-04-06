@@ -78,6 +78,7 @@ dbDisconnect(myConn)
 
 newLogs = data.frame(timeStamp = as.integer(Sys.time()), actionId = 1, 
                      actionName = "Start Mixing")
+finalMessage = ""
 
 tryCatch({
   
@@ -89,8 +90,16 @@ tryCatch({
   }
   
   #Read the input file and remove unwanted whitespace
-  files = read_csv(inputFile, col_names = T, col_types = cols()) %>%  
-    mutate(across(where(is.character), function(x) str_trim(x)))
+  tryCatch({
+    files = read_csv(inputFile, col_names = T, col_types = cols()) %>%  
+      mutate(across(where(is.character), function(x) str_trim(x)))
+  },
+  warning = function(x){
+    stop("\n\nThe CSV file is not in a valid format\n\n")
+  },
+  error = function(x){
+    stop("\n\nThe CSV file is not in a valid format\n\n")
+  })
   
   allCols = colnames(files)
   
@@ -118,16 +127,6 @@ tryCatch({
     stop(paste0("Incorrect input file\n\n", reqCols))
   }
   
-  #Check the genome size
-  if("genomeSize" %in% allCols){
-    files = files %>% 
-      mutate(test = ifelse(is.na(genomeSize), 3.7e6, genomeSize))
-  } else if("coverage" %in% allCols) {
-    files$genomeSize = 3.7e6
-    cat("\n            NOTE: the default bacterial genome size estimation of 3.7Mbp\n")
-    cat("\n                  was used to calculate the relative abundance or coverage\n")
-  }
-  
   #Type combo check
   if(!all(str_detect(files$type, "^i|^I|^b|^B"))){
     isoVsBack = "*** Incorrect sample types. Either i, I, isolate or b, B, background"
@@ -144,7 +143,41 @@ tryCatch({
   - Two or more isolate(I) files\n- One background(B) and one or more isolate(I) files"
     }
   }
+  
+  #Check if limits are used correctly
+  if("coverage" %in% allCols){
+    if(minBases > 0 | maxBases < Inf){
+      finalMessage = paste(
+        finalMessage, 
+        "  NOTE: The set limits do not apply here, use the a|b arguments instead\n")
+    }
+  } else {
+    if(minBackBases > 0 | maxBackBases < Inf){
+      finalMessage = paste(
+        finalMessage, 
+        "  NOTE: The set limits do not apply here, use the u|l arguments instead\n")
+    }
+  }
  
+  #Check the genome size
+  if("genomeSize" %in% allCols){
+    files = files %>% 
+      mutate(
+        genomeSize = case_when(
+          type == "b" ~ NA_real_,
+          is.na(genomeSize) ~ 3.7e6,
+          TRUE ~ genomeSize),
+        coverage = ifelse(type == "b", NA, coverage)
+        )
+  } else if("coverage" %in% allCols) {
+    files$genomeSize = ifelse(files$type == "b", NA, 3.7e6)
+    files$coverage[files$type == "b"] = NA
+    finalMessage = paste(
+      finalMessage, 
+      "  NOTE: the default bacterial genome size estimation of 3.7Mbp\n",
+      "   was used to calculate the relative abundance or coverage\n")
+  }
+  
   #Check if files need to be downloaded
   SRAexists = ""
   if(any(colnames(files) %in% "getFromSRA")){
@@ -373,7 +406,7 @@ tryCatch({
   #Make calculations based on scenario...
   if("coverage" %in% colnames(raData)){ ### COVERAGE BASED CALCULATIONS
     
-    #Calculate the numer of reads for coverage
+    #Calculate the number of reads for coverage
     raData = raData %>% mutate(
       coverage = ifelse(type == "b", NA, coverage),
       readsNeeded = genomeSize * coverage / readLength,
@@ -450,7 +483,7 @@ tryCatch({
     #Get the final read counts
     raData$readsNeeded = raData$readsNeeded * totalBases / sumBases
     raData$fileNeeded = raData$readsNeeded / raData$readCount
-    raData$readsNeeded = as.integer(raData$readsNeededs)
+    raData$readsNeeded = as.integer(raData$readsNeeded)
 
   }
   
@@ -460,6 +493,8 @@ tryCatch({
   newLogs = rbind(newLogs, list(as.integer(Sys.time()), 6, 
                                 "Number of reads needed from each file calculated"))
   
+  raData = raData %>% select(-any_of("genomeCorrection")) 
+
   # ---- Filter and merge the files ----
   #*************************************
   toMerge = raData %>% filter(fileNeeded > 0) %>% 
@@ -518,7 +553,8 @@ tryCatch({
   }
   
   #Add the number of used reads 
-  raData = raData %>% left_join(toMerge %>% select(id, readsUsed = readCount), by = "id")
+  raData = raData %>% left_join(toMerge %>% select(id, readsUsed = readCount), by = "id") %>% 
+    mutate(readLength = round(readLength, 2))
   files = files %>% left_join(toMerge %>% select(id, readsUsed = readCount), by = "id")
   
   #Merge the temp files into the final one
@@ -534,7 +570,11 @@ tryCatch({
     if("relativeAbundance" %in% colnames(raData)){
       limits = list(minBases = minBases, maxBases = maxBases)
     } else {
-      limits = list(minBackBases = minBackBases, maxBackBases = maxBackBases)
+      if("b" %in% raData$type){
+        limits = list(minBackBases = minBackBases, maxBackBases = maxBackBases)
+      } else {
+        limits = list()
+      }
     }
     
     metaData = list(
@@ -556,7 +596,8 @@ tryCatch({
                   filePath2 = ifelse(is.na(filePath[2]), "", filePath[2]), 
                   .groups = "drop") %>% 
         select(seqId, type:fileNeeded, readsUsed, sampleName, 
-               SRR = getFromSRA, fileName1:filePath2)
+               SRR = getFromSRA, fileName1:filePath2) %>% 
+        mutate(type = ifelse(type == "i", "isolate", "background"))
     )
   
     write_json(metaData, paste0(str_extract(outputFile, ".*(?=\\.fastq\\.gz$)"), 
@@ -591,10 +632,6 @@ tryCatch({
   nextSeqId = dbGetQuery(myConn, "SELECT max(seqId) as val FROM seqData")$val
   nextSeqId = ifelse(is.na(nextSeqId), 1, nextSeqId + 1)
   
-  # save(newFileIds,files,raData,outputFile,nextFileId,nextSeqId, 
-  #      file = sprintf("%s/dataAndScripts/test.Rdata", baseFolder))
-  # load("dataAndScripts/test.Rdata")
-
   #Make a table with all files that are new and need to be inserted in seqData and seqFiles
   newFiles = bind_rows(
     files %>%  filter(id %in% newFileIds),
@@ -648,7 +685,7 @@ tryCatch({
     myConn, 
     "INSERT INTO seqData (seqId,sampleName,readCount,readLength,SRR) VALUES(?,?,?,?,?)",
     params = list(newSeqData$seqId, newSeqData$sampleName,
-                  newSeqData$readCount, round(newSeqData$readLength, 2), newSeqData$SRR))
+                  newSeqData$readCount, newSeqData$readLength, newSeqData$SRR))
   dbClearResult(q)
   
   #Insert the new files into seqFiles
@@ -707,4 +744,9 @@ finally = {
   
   #Remove temp files
   system(paste("rm -r", tempFolder))
+  
+  if(verbose & finalMessage != ""){
+    cat("\nMessages:\n", finalMessage)
+  }
+  
 })
