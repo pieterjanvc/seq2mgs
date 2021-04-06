@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS "logs" (
 CREATE TABLE IF NOT EXISTS "seqData" (
 	"seqId"	integer primary key,
 	"sampleName" text NOT NULL,
-	"readCount" text integer NOT NULL,
+	"readCount" integer NOT NULL,
+	"readLength" numeric NOT NULL,
 	"sampleType" text,
 	"description" text,
 	"SRR" text,

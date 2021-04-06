@@ -37,6 +37,9 @@ metaData = as.logical(args[[6]])
 verbose = as.logical(args[[7]])
 tempFolder = formatPath(as.character(args[[8]]))
 runId = as.integer(args[[9]])
+minBackBases = max(as.integer(args[[10]]), 0, na.rm = T)
+maxBackBases = min(as.integer(args[[11]]), Inf, na.rm = T)
+oversample = T 
 
 #Grab the location of the reformat script from the settings file
 reformatScript = system(sprintf(
@@ -69,7 +72,7 @@ dir.create(tempFolder)
 myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/metaMixer.db", baseFolder))
 readCounts = dbGetQuery(
   myConn, 
-  "SELECT f.*, d.readCount FROM seqFiles as f, seqData as d WHERE f.seqId = d.seqId") %>% 
+  "SELECT f.*, d.readCount, d.readLength FROM seqFiles as f, seqData as d WHERE f.seqId = d.seqId") %>% 
   select(-folder) %>% mutate(fileSize = as.numeric(fileSize))
 dbDisconnect(myConn)
 
@@ -89,27 +92,59 @@ tryCatch({
   files = read_csv(inputFile, col_names = T, col_types = cols()) %>%  
     mutate(across(where(is.character), function(x) str_trim(x)))
   
-  #Calculate the background RA if present
-  files = files %>% 
-    mutate(relativeAbundance = ifelse(str_detect(type, "i|I"), relativeAbundance, 
-                                      1 - sum(relativeAbundance[str_detect(type, "i|I")])))
-  #Check that sum of RA = 1
-  sumRA = ifelse(sum(files$relativeAbundance) != 1, 
-                 "*** The sum of relative abundances is not 1", "")
+  allCols = colnames(files)
   
-  #Type combo check
-  totalI = sum(str_detect(files$type, "i|I"))
-  totalB = sum(str_detect(files$type, "b|B"))
-  isoVsBack = ""
-  if((totalI < 1 & totalB == 0) | 
-     (totalI == 0 & totalB > 0 | 
-      (totalB > 1) | 
-      sum(totalI, totalB) != nrow(files))){
-    isoVsBack = "*** Incorrect combination of samples. Choose any of the following:
-  - Two or more isolate(I) files\n- One background(B) and one or more isolate(I) files"
+  reqCols = ""
+  #Check the columns needed
+  if(! "type" %in% allCols){
+    reqCols = " type column must be present\n"
   }
   
+  if(!any(c("relativeAbundance", "coverage") %in% allCols)){
+    reqCols = " relativeAbundance or coverage must be present\n"
+  }
   
+  if(all(c("relativeAbundance", "coverage") %in% allCols)){
+    reqCols = " relativeAbundance and coverage cannot be present at the same time\n"
+  }
+  
+  if(!any(c("readFile", "getFromSRA") %in% allCols)){
+    reqCols = " readFile or getFromSRA must be presentt"
+  }
+  
+  if(reqCols != ""){
+    reqCols = paste0("*** Issues with columns:\n", reqCols)
+    newLogs = rbind(newLogs, list(as.integer(Sys.time()), 2, "Errors in input file, stop"))
+    stop(paste0("Incorrect input file\n\n", reqCols))
+  }
+  
+  #Check the genome size
+  if("genomeSize" %in% allCols){
+    files = files %>% 
+      mutate(test = ifelse(is.na(genomeSize), 3.7e6, genomeSize))
+  } else if("coverage" %in% allCols) {
+    files$genomeSize = 3.7e6
+    cat("\n            NOTE: the default bacterial genome size estimation of 3.7Mbp\n")
+    cat("\n                  was used to calculate the relative abundance or coverage\n")
+  }
+  
+  #Type combo check
+  if(!all(str_detect(files$type, "^i|^I|^b|^B"))){
+    isoVsBack = "*** Incorrect sample types. Either i, I, isolate or b, B, background"
+  } else{
+    files$type = ifelse(str_detect(files$type, "^i|^I"), "i", "b")
+    totalI = sum(files$type == "i")
+    totalB = sum(files$type == "b")
+    isoVsBack = ""
+    if((totalI < 1 & totalB == 0) | 
+       (totalI == 0 & totalB > 0 | 
+        (totalB > 1) | 
+        sum(totalI, totalB) != nrow(files))){
+      isoVsBack = "*** Incorrect combination of samples. Choose any of the following:
+  - Two or more isolate(I) files\n- One background(B) and one or more isolate(I) files"
+    }
+  }
+ 
   #Check if files need to be downloaded
   SRAexists = ""
   if(any(colnames(files) %in% "getFromSRA")){
@@ -147,6 +182,22 @@ tryCatch({
     files$getFromSRA = NA
   }
   
+  sumRA = ""
+  if("coverage" %in% allCols){
+    #Check coverage
+    if(!all(files %>% filter(type == "i") %>% pull(coverage) %>% is.numeric())){
+      sumRA = "*** The coverage of each isolate must be a numeric value >= 0"
+    }
+    
+  } else {
+    #Calculate the background RA if present
+    files = files %>% 
+      mutate(relativeAbundance = ifelse(str_detect(type, "i|I"), relativeAbundance, 
+                                        1 - sum(relativeAbundance[str_detect(type, "i|I")])))
+    #Check that sum of RA = 1
+    sumRA = ifelse(sum(files$relativeAbundance) != 1, 
+                   "*** The sum of relative abundances is not 1", "")
+  }
   
   files = files %>% 
     mutate(id = 1:n(), 
@@ -184,6 +235,7 @@ tryCatch({
                          paste0("*** The following files are not in fastq or fastq.gz format\n", 
                          paste(incorrectType, collapse = "\n")), "")
   files = files %>% select(-correctType)
+  
   
   #Paste everything together
   errorMessage = c(sumRA, isoVsBack, uniqueFiles, missing, incorrectType, SRAexists)
@@ -240,8 +292,8 @@ tryCatch({
   }
   
   
-  # ---- Get the read counts ----
-  #*******************************
+  # ---- Get the read counts + length ----
+  #***************************************
   
   #Add readcounts from previous runs
   files = files %>% mutate(fileSize = file.info(filePath)$size, 
@@ -265,7 +317,7 @@ tryCatch({
   }
   
   
-  #If no read counts yet, count them
+  #If no read counts yet, count them + mean length
   newFileIds = files %>% filter(is.na(readCount)) %>% pull(id) %>% unique()
   
   if(length(newFileIds) > 0){
@@ -287,8 +339,13 @@ tryCatch({
       
       files[files$id == myId, "readCount"] = nReads
       
+      #Add the average read count based on the first 10000 reads
+      avgLength = sapply(readLines(myFile$filePath[1], 40000)[seq(2, 40000, 4)],
+             nchar, USE.NAMES = F) %>% mean(na.rm = T)
+      files[files$id == myId, "readLength"] = avgLength
+      
       if(verbose){
-        cat(nReads, "\n")
+        cat(nReads, "(mean length ~", avgLength, ")\n")
       }
   	newLogs = rbind(newLogs, 
   	                list(as.integer(Sys.time()), 5, 
@@ -299,41 +356,101 @@ tryCatch({
   }
   
   
-  # ---- Calculate the reads needed for the correct RA ----
-  #********************************************************
+  # ---- Calculate the reads needed for the correct RA / coverage ----
+  #*******************************************************************
   
   if(verbose){
     cat(format(Sys.time(), "%H:%M:%S"),
         "- Calculate the number of reads needed from each file ... ")
   }
   
-  raData = files %>% group_by(id, type, relativeAbundance, readCount) %>% 
-    summarise(.groups = 'drop')
+  raData = files %>% 
+    select(any_of(c("id", "type", "relativeAbundance", "readCount", 
+                    "readLength", "genomeSize", "coverage"))) %>% 
+    distinct()
   
-  #Get min reads per % 
-  rpp = min(raData$readCount / (raData$relativeAbundance *  100))
-  
-  #Calculate the total number of reads
-  totalReads = sum(raData$relativeAbundance * 100 * rpp)
-  
-  #If limits set, adjust the rpp
-  nReadsM = raData %>% filter(type == "B" | type == "b") %>% pull(readCount) %>% 
-    as.numeric()
-  readLimit = ifelse(length(nReadsM) != 0, nReadsM, totalReads)
-  
-  readLim = case_when(
-    upperLimit != 0 & (totalReads > upperLimit | readLimit > upperLimit) ~ upperLimit,
-    lowerLimit != 0 & (totalReads < lowerLimit| readLimit < lowerLimit) ~ lowerLimit,
-    TRUE ~ readLimit
-  )
-
-  if(readLim != totalReads){
-    rpp = rpp * readLim / totalReads
+  #Make calculations based on scenario...
+  if("coverage" %in% colnames(raData)){ ### COVERAGE BASED CALCULATIONS
+    
+    #Calculate the numer of reads for coverage
+    raData = raData %>% mutate(
+      coverage = ifelse(type == "b", NA, coverage),
+      readsNeeded = genomeSize * coverage / readLength,
+      readsNeeded = ifelse(type == "b", readCount - sum(readsNeeded, na.rm = T), readsNeeded)
+    )
+    
+    #Add or remove background reads based on limits
+    if(any(raData$type == "b")){
+      backBases = raData$readsNeeded[raData$type == "b"] * raData$readLength[raData$type == "b"]
+      backBases = case_when(
+        backBases < minBackBases ~ minBackBases,
+        backBases > maxBackBases ~ maxBackBases,
+        TRUE ~ backBases
+      )
+      raData$readsNeeded[raData$type == "b"] = backBases /  raData$readLength[raData$type == "b"]
+    }
+    
+    raData = raData %>% mutate(fileNeeded = readsNeeded / readCount)
+    
+  } else if(any(raData$type == "b")){ ### RA WITH BACKGROUND
+    
+    if(F){
+      raData = raData %>% 
+        mutate(genomeCorrection = genomeSize / 
+                 genomeSize[genomeSize == min(genomeSize, na.rm = T)][1])
+      raData$genomeCorrection[raData$type == "b"] = 1
+    } else {
+      raData$genomeCorrection = 1
+    }
+    
+    sumBases = raData %>% filter(type == "b") %>% 
+      mutate(val = readLength * readCount) %>% pull(val)
+    totalBases = case_when(
+      sumBases < minBases ~ minBases,
+      sumBases > maxBases ~ maxBases,
+      TRUE ~ sumBases
+    )
+    
+    #Get the final read counts
+    raData = raData %>% 
+      mutate(
+        readsNeeded = as.integer(totalBases * relativeAbundance * genomeCorrection/ readLength),
+        fileNeeded = readsNeeded / readCount
+      )
+    
+  } else { ### RA WITHOUT BACKGROUND
+    
+    if(F){
+      raData$genomeCorrection = raData$genomeSize
+    } else {
+      raData$genomeCorrection = 1
+    }
+    
+    #Find the file with the fewest bases available for the RA
+    readCorrection = raData %>% mutate(
+      val = readCount * readLength * relativeAbundance / genomeCorrection
+    ) %>% filter(val == min(val)) %>% slice(1) %>% 
+      mutate(val = readCount * readLength * genomeCorrection / relativeAbundance) %>% 
+      pull(val)
+    
+    #Adjust the other file's bases needed + correct for genome if set
+    raData = raData %>% mutate(
+      readsNeeded = readCorrection * relativeAbundance / (readLength * genomeCorrection)
+    )
+    
+    #Adjust the read counts based on min - max if set
+    sumBases = sum(raData$readsNeeded * raData$readLength)
+    totalBases = case_when(
+      sumBases < minBases ~ minBases,
+      sumBases > maxBases ~ maxBases,
+      TRUE ~ sumBases
+    )
+    
+    #Get the final read counts
+    raData$readsNeeded = as.integer(raData$readsNeeded * totalBases / sumBases)
+    raData$fileNeeded = raData$readsNeeded / raData$readCount
+    
   }
-  
-  #Caluclate the times each input file is needed
-  raData = raData %>% mutate(readsNeeded = as.integer(relativeAbundance * 100 * rpp),
-                             fileNeeded = readsNeeded / readCount)
   
   if(verbose){
     cat("done\n")
@@ -343,7 +460,8 @@ tryCatch({
   
   # ---- Filter and merge the files ----
   #*************************************
-  toMerge = raData %>% left_join(files %>% select(id, filePath), by = "id") %>% 
+  toMerge = raData %>% filter(fileNeeded > 0) %>% 
+    left_join(files %>% select(id, filePath), by = "id") %>% 
     group_by(id, fileNeeded, readCount) %>% 
     summarise(file1 = filePath[1], 
               file2 = ifelse(is.na(filePath[2]), "", filePath[2]), .groups = 'drop')
@@ -417,6 +535,7 @@ tryCatch({
       outputFile = outputFile,
       readLimit = readLimit,
       totalReads = sum(raData$readsUsed),
+      totalBases = sum(raData$readsUsed * raData$readLength),
       fileData = raData %>% select( -readsNeeded, -readsUsed) %>% 
         left_join(
           files %>% 
@@ -479,6 +598,7 @@ tryCatch({
          fileId = as.integer(NA),
          seqId = as.integer(NA),
          readCount = sum(raData$readsUsed),
+         readLength = raData$readLength[1],
          readsUsed = sum(raData$readsUsed))) %>% 
     group_by(id) %>% 
     mutate(filePath = str_remove(filePath, "[^/]+.fastq.gz$")) %>% ungroup()
@@ -515,9 +635,9 @@ tryCatch({
     group_by(seqId,sampleName,readCount) %>% 
     summarise(SRR = getFromSRA[1],.groups = "drop")
   
-  q = dbSendQuery(myConn, "INSERT INTO seqData (seqId,sampleName,readCount,SRR) VALUES(?,?,?,?)",
+  q = dbSendQuery(myConn, "INSERT INTO seqData (seqId,sampleName,readCount,readLength,SRR) VALUES(?,?,?,?)",
               params = list(newSeqData$seqId, newSeqData$sampleName, 
-                            newSeqData$readCount, newSeqData$SRR))
+                            newSeqData$readCount, newSeqData$readLength, newSeqData$SRR))
   dbClearResult(q)
   
   #Insert the new files into seqFiles

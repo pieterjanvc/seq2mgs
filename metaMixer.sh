@@ -36,7 +36,7 @@ updateDBwhenError() {
 }
 
 #Options when script is run
-while getopts ":hi:o:t:l:u::m:fv:" opt; do
+while getopts ":hi:o:t:l:u:a:b:m:fv:" opt; do
   case $opt in
 	h) echo -e "\n"
 	   awk '/--- metaMixer.SH ---/,/-- END metaMixer.SH ---/' $baseFolder/readme.txt 
@@ -49,9 +49,13 @@ while getopts ":hi:o:t:l:u::m:fv:" opt; do
     ;;
 	t) tempFolder=`realpath "${OPTARG}"`
     ;;
-	l) lowerLimit="${OPTARG}"
+	l) minBases="${OPTARG}"
     ;;
-	u) upperLimit="${OPTARG}"
+	u) maxBases="${OPTARG}"
+    ;;
+	a) minBackBases="${OPTARG}"
+    ;;
+	b) maxBackBases="${OPTARG}"
     ;;
 	m) metaData="${OPTARG}"
     ;;
@@ -87,16 +91,28 @@ elif [ -f $outputFile ] && [ -z ${forceOverwrite+x} ]; then
 	echo -e "\n\e[91mThe output file already exists.\n Use -f option to force overwrite\e[0m"; exit 1;
 fi
 
-if [ -z ${lowerLimit+x} ]; then 
-	lowerLimit=0
-elif [[ ! $lowerLimit =~ ^[0-9]+$ ]]; then 
-	echo -e "\n\e[91mThe read limit must be a positive integer\e[0m"; exit 1; 
+if [ -z ${minBases+x} ]; then 
+	minBases=0
+elif [[ ! $minBases =~ ^[0-9]+$ ]]; then 
+	echo -e "\n\e[91mThe base limit must be a positive integer\e[0m"; exit 1; 
 fi
 
-if [ -z ${upperLimit+x} ]; then 
-	upperLimit=0
-elif [[ ! $upperLimit =~ ^[0-9]+$ ]]; then 
-	echo -e "\n\e[91mThe read limit must be a positive integer\e[0m"; exit 1; 
+if [ -z ${maxBases+x} ]; then 
+	maxBases=0
+elif [[ ! $maxBases =~ ^[0-9]+$ ]]; then 
+	echo -e "\n\e[91mThe base limit must be a positive integer\e[0m"; exit 1; 
+fi
+
+if [ -z ${minBackBases+x} ]; then 
+	# minBackBases=0
+elif [[ ! $minBackBases =~ ^[0-9]+$ ]]; then 
+	echo -e "\n\e[91mThe base limit must be a positive integer\e[0m"; exit 1; 
+fi
+
+if [ -z ${maxBackBases+x} ]; then 
+	# maxBackBases=0
+elif [[ ! $maxBackBases =~ ^[0-9]+$ ]]; then 
+	echo -e "\n\e[91mThe base limit must be a positive integer\e[0m"; exit 1; 
 fi
 
 if [ -z ${tempFolder+x} ]; then 
@@ -137,8 +153,10 @@ $sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
 	VALUES($runId,'metaMixer.sh','inputFile', '$inputFile'),
 	($runId,'metaMixer.sh','outputFile', '$outputFile'),
 	($runId,'metaMixer.sh','tempFolder', '$tempFolder'),
-	($runId,'metaMixer.sh','upperLimit', '$upperLimit'),
-	($runId,'metaMixer.sh','lowerLimit', '$lowerLimit'),
+	($runId,'metaMixer.sh','maxBases', '$maxBases'),
+	($runId,'metaMixer.sh','minBases', '$minBases'),
+	($runId,'metaMixer.sh','maxBackBases', '$maxBackBases'),
+	($runId,'metaMixer.sh','minBackBases', '$minBackBases'),
 	($runId,'metaMixer.sh','metaData', '$metaData'),
 	($runId,'metaMixer.sh','forceOverwrite', '$forceOverwrite'),
 	($runId,'metaMixer.sh','verbose', '$verbose')"	
@@ -150,8 +168,9 @@ fi
 #Run the R script
 rPath=`grep -oP "rscript\s*=\s*\K(.*)" $baseFolder/settings.txt`
 $rPath $baseFolder/dataAndScripts/metaMixer.R \
-	$baseFolder $inputFile $outputFile $lowerLimit \
-	$upperLimit $metaData $verbose $tempFolder $runId
+	$baseFolder $inputFile $outputFile $minBases \
+	$maxBases $metaData $verbose $tempFolder $runId \
+	"$minBackBases" "$maxBackBases"
 
 if [ $verbose == T ]; then
 	echo -e "\e[32m"`date "+%T"`" - Finished mixing reads\n\e[0m"

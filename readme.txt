@@ -1,6 +1,7 @@
 ########## METAMIXER ##########
 ##############################
    Developed by PJ Van Camp
+     vancampn@mail.uc.edu
 
 --- SETUP.SH ---
 Run the setup.sh script to verify all dependencies and to test the pipeline.
@@ -34,26 +35,38 @@ IMPORTANT: Update the paths to all dependencies in the 'settings.txt' file
 --- METAMIXER.SH ---
 Mix multiple isolate WGS files together to create artificial metagenomes 
 
-Arguments [h|i|o|l|u|m|t|f|v]
+Arguments [h|i|o|l|u|a|b|m|t|f|v]
  -h Read the help documentation
+ 
+# Required
  -i The input file (.csv) containing all samples to be mixed
  -o The location to save the output file. Filename should end with a fastq.gz extension
- -l (optional) The min number of reads the mixed file should contain. 
-     By default, the number of reads in the background file is chosen.
-     If no background file is present, the limit is the max sum of 
-	 the fractions needed from each isolate file.
- -u (optional) The max number of reads the mixed file should contain. 
-     By default, the number of reads in the background file is chosen.
-     If no background file is present, the limit is the sum of 
-	 the fractions needed from each isolate file.
+
+# Optional
  -m (optional) TRUE or FALSE. 
      Generate a meta-data JSON file in the same folder as the output file.
      Default can be changed in the settings.txt file
- -t (optional) The location of the temp folder (files removed once completed). 
-     Default can be changed in the settings file
  -f (optional) If set, force overwriting an existing output file
  -v (optional) TRUE or FALSE. Progress is posted to stdout when TRUE.
      Default can be changed in the settings.txt file
+ 
+# Mix-in based on relative abundance (optional)
+ -l (optional) The min number of bases the mixed file should contain. 
+     By default, the number of bases in the background file is chosen.
+     If no background file is present, the limit is the max sum of 
+	 the fractions needed from each isolate file.
+ -u (optional) The max number of bases the mixed file should contain. 
+     By default, the number of bases in the background file is chosen.
+     If no background file is present, the limit is the sum of 
+	 the fractions needed from each isolate file.
+	 
+# Mix-in based on coverage (optional)
+ -a (optional) The min number of bases the background should contain. 
+     By default, the number of bases is the difference between the 
+	 bases used for the isolates and the bases in the background
+ -b (optional) The max number of bases the background should contain. 
+     By default, the number of bases is the difference between the 
+	 bases used for the isolates and the bases in the background
 
 
 Input file details --
@@ -62,12 +75,17 @@ This is a .csv file with the following columns
    * Minimum of 2 I files if no B file
    * Max 1 B file and 1 or more I files
  - sampleName (optional): custom name for the different input files
- - relativeAbundance: relative abundance of the file in the final metagenome.
-    The sum of all must be 1.0
+ DEPENDING ON PREFERENCE EITHER
+	 - relativeAbundance: relative abundance of the file in the final metagenome (0-1).
+		The sum of all must be 1.0 if only isolates 
+		The sum must be < 1 when there is a background (its RA will be calculated)
+	OR
+	 - coverage: The times a genome should be covered
+	 - genomeSize: The size of each genome in bases (if not set, defaults to 3.7e+6)
  - readFile: full path to the first read file (fastq.gz format)
  - readFile2: full path to the second read file (fastq.gz format)
     Leave empty in case of 1 interleaved data file
- - getFromSRA: fill in the SRR (leave readFile(2) blank)
+ - getFromSRA: fill in the SRR (leave readFile/readFile blank)
     The file will be downloaded from SRA 
  - Any other columns will be ignored, but put in the meta-data JSON file if generated
 
