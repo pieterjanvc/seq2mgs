@@ -91,19 +91,19 @@ elif [ -f $outputFile ] && [ -z ${forceOverwrite+x} ]; then
 	echo -e "\n\e[91mThe output file already exists.\n Use -f option to force overwrite\e[0m"; exit 1;
 fi
 
-if [ ! -z ${minBases+x} ] && [[ ! "$minBases" =~ ^[0-9]+$ ]]; then 
+if [ ! -z ${minBases+x} ] && [[ ! "$minBases" =~ ^[0-9\.+-eE]+$ ]]; then 
 	echo -e "\n\e[91mThe base limit must be a positive integer\e[0m"; exit 1; 
 fi
 
-if [ ! -z ${maxBases+x} ] && [[ ! "$maxBases" =~ ^[0-9]+$ ]]; then 
+if [ ! -z ${maxBases+x} ] && [[ ! "$maxBases" =~ ^[0-9\.+-eE]+$ ]]; then 
 	echo -e "\n\e[91mThe base limit must be a positive integer\e[0m"; exit 1; 
 fi
 
-if [ ! -z ${minBackBases+x} ] && [[ ! "$minBackBases" =~ ^[0-9]+$ ]]; then 
+if [ ! -z ${minBackBases+x} ] && [[ ! "$minBackBases" =~ ^[0-9\.+-eE]+$ ]]; then 
 	echo -e "\n\e[91mThe min base limit must be a positive integer\e[0m"; exit 1; 
 fi
 
-if [ ! -z ${maxBackBases+x} ] && [[ ! "$maxBackBases" =~ ^[0-9]+$ ]]; then 
+if [ ! -z ${maxBackBases+x} ] && [[ ! "$maxBackBases" =~ ^[0-9\.+-eE]+$ ]]; then 
 	echo -e "\n\e[91mThe max base limit must be a positive integer\e[0m"; exit 1; 
 fi
 
