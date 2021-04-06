@@ -91,28 +91,20 @@ elif [ -f $outputFile ] && [ -z ${forceOverwrite+x} ]; then
 	echo -e "\n\e[91mThe output file already exists.\n Use -f option to force overwrite\e[0m"; exit 1;
 fi
 
-if [ -z ${minBases+x} ]; then 
-	minBases=0
-elif [[ ! $minBases =~ ^[0-9]+$ ]]; then 
+if [ ! -z ${minBases+x} ] && [[ ! "$minBases" =~ ^[0-9]+$ ]]; then 
 	echo -e "\n\e[91mThe base limit must be a positive integer\e[0m"; exit 1; 
 fi
 
-if [ -z ${maxBases+x} ]; then 
-	maxBases=0
-elif [[ ! $maxBases =~ ^[0-9]+$ ]]; then 
+if [ ! -z ${maxBases+x} ] && [[ ! "$maxBases" =~ ^[0-9]+$ ]]; then 
 	echo -e "\n\e[91mThe base limit must be a positive integer\e[0m"; exit 1; 
 fi
 
-if [ -z ${minBackBases+x} ]; then 
-	# minBackBases=0
-elif [[ ! $minBackBases =~ ^[0-9]+$ ]]; then 
-	echo -e "\n\e[91mThe base limit must be a positive integer\e[0m"; exit 1; 
+if [ ! -z ${minBackBases+x} ] && [[ ! "$minBackBases" =~ ^[0-9]+$ ]]; then 
+	echo -e "\n\e[91mThe min base limit must be a positive integer\e[0m"; exit 1; 
 fi
 
-if [ -z ${maxBackBases+x} ]; then 
-	# maxBackBases=0
-elif [[ ! $maxBackBases =~ ^[0-9]+$ ]]; then 
-	echo -e "\n\e[91mThe base limit must be a positive integer\e[0m"; exit 1; 
+if [ ! -z ${maxBackBases+x} ] && [[ ! "$maxBackBases" =~ ^[0-9]+$ ]]; then 
+	echo -e "\n\e[91mThe max base limit must be a positive integer\e[0m"; exit 1; 
 fi
 
 if [ -z ${tempFolder+x} ]; then 
@@ -168,8 +160,8 @@ fi
 #Run the R script
 rPath=`grep -oP "rscript\s*=\s*\K(.*)" $baseFolder/settings.txt`
 $rPath $baseFolder/dataAndScripts/metaMixer.R \
-	$baseFolder $inputFile $outputFile $minBases \
-	$maxBases $metaData $verbose $tempFolder $runId \
+	$baseFolder $inputFile $outputFile "$minBases" \
+	"$maxBases" $metaData $verbose $tempFolder $runId \
 	"$minBackBases" "$maxBackBases"
 
 if [ $verbose == T ]; then

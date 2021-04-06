@@ -31,8 +31,8 @@ formatPath = function(path, endWithSlash = F){
 baseFolder = formatPath(as.character(args[[1]]))
 inputFile = as.character(args[[2]])
 outputFile = as.character(args[[3]])
-minBases = as.numeric(args[[4]])
-maxBases = as.numeric(args[[5]])
+minBases = max(as.integer(args[[4]]), 0, na.rm = T)
+maxBases = min(as.integer(args[[5]]), Inf, na.rm = T)
 metaData = as.logical(args[[6]])
 verbose = as.logical(args[[7]])
 tempFolder = formatPath(as.character(args[[8]]))
@@ -203,7 +203,8 @@ tryCatch({
     mutate(id = 1:n(), 
            sampleName = ifelse(sampleName == "", paste0("sample", 1:n()), sampleName)) %>% 
     pivot_longer(c(readFile, readFile2), values_to = "filePath") %>% 
-    select(id, type, relativeAbundance, getFromSRA, filePath, sampleName) %>% 
+    select(id, type, any_of(c("relativeAbundance", "coverage", "genomeSize")), 
+           getFromSRA, filePath, sampleName) %>% 
     filter(filePath != "") %>% 
     mutate(modDate = file.info(filePath)$mtime %>% as.character(), 
            correctType = str_detect(filePath, "\\.fastq\\.gz$|\\.fastq$"),
@@ -326,8 +327,8 @@ tryCatch({
       myFile = files %>% filter(id == myId)
       
       if(verbose){
-        cat(format(Sys.time(), "%H:%M:%S"),"- Counting number of reads in",
-            myFile$fileName, "... ")
+        cat(format(Sys.time(), "%H:%M:%S"),"- Counting reads in",
+            myFile$fileName[1], "... ")
       }
   
       #Count the lines in the file (4 lines = 1 read)
@@ -349,7 +350,7 @@ tryCatch({
       }
   	newLogs = rbind(newLogs, 
   	                list(as.integer(Sys.time()), 5, 
-  	                     paste("Count reads for",paste(myFile$fileName, 
+  	                     paste("Count reads for",paste(myFile$fileName[1], 
   	                                                   collapse = ", "))))
     }
    
@@ -417,7 +418,7 @@ tryCatch({
         readsNeeded = as.integer(totalBases * relativeAbundance * genomeCorrection/ readLength),
         fileNeeded = readsNeeded / readCount
       )
-    
+
   } else { ### RA WITHOUT BACKGROUND
     
     if(F){
@@ -447,9 +448,10 @@ tryCatch({
     )
     
     #Get the final read counts
-    raData$readsNeeded = as.integer(raData$readsNeeded * totalBases / sumBases)
+    raData$readsNeeded = raData$readsNeeded * totalBases / sumBases
     raData$fileNeeded = raData$readsNeeded / raData$readCount
-    
+    raData$readsNeeded = as.integer(raData$readsNeededs)
+
   }
   
   if(verbose){
@@ -529,17 +531,24 @@ tryCatch({
   #Write the meta data as JSON (if requested)
   if(metaData){
 
+    if("relativeAbundance" %in% colnames(raData)){
+      limits = list(minBases = minBases, maxBases = maxBases)
+    } else {
+      limits = list(minBackBases = minBackBases, maxBackBases = maxBackBases)
+    }
+    
     metaData = list(
       timestamp = Sys.time() %>% as.character(),
       inputFile = inputFile,
       outputFile = outputFile,
-      readLimit = readLimit,
       totalReads = sum(raData$readsUsed),
-      totalBases = sum(raData$readsUsed * raData$readLength),
+      estimatedBases = as.integer(sum(raData$readsUsed * raData$readLength)),
+      limits = limits,
       fileData = raData %>% select( -readsNeeded, -readsUsed) %>% 
         left_join(
           files %>% 
-            select(-type, -relativeAbundance, -readCount, -fileId), by = "id") %>% 
+            select(-type, -any_of(c("relativeAbundance", "coverage", "genomeSize")), 
+                                 -readCount, -readLength, -fileId), by = "id") %>% 
         group_by(across(c(-filePath, -modDate, -fileSize, -fileName))) %>%
         summarise(fileName1 = fileName[1], 
                   filePath1 = filePath[1], 
@@ -585,11 +594,11 @@ tryCatch({
   # save(newFileIds,files,raData,outputFile,nextFileId,nextSeqId, 
   #      file = sprintf("%s/dataAndScripts/test.Rdata", baseFolder))
   # load("dataAndScripts/test.Rdata")
-  
+
   #Make a table with all files that are new and need to be inserted in seqData and seqFiles
-  newFiles = rbind(
+  newFiles = bind_rows(
     files %>%  filter(id %in% newFileIds),
-    list(id = 0, type = "M", relativeAbundance = 1.0, 
+    list(id = 0, type = "M",
          getFromSRA = NA, filePath = outputFile, 
          sampleName = str_match(outputFile, "([^/]+).fastq.gz$")[,2],
          modDate = file.info(outputFile)$mtime %>% as.character(), 
@@ -602,7 +611,6 @@ tryCatch({
          readsUsed = sum(raData$readsUsed))) %>% 
     group_by(id) %>% 
     mutate(filePath = str_remove(filePath, "[^/]+.fastq.gz$")) %>% ungroup()
-  
   #Add the new seqId and fileId
   newFiles[is.na(newFiles$fileId),"fileId"] = 
     nextFileId:(nextFileId + sum(is.na(newFiles$fileId)) - 1)
@@ -614,13 +622,14 @@ tryCatch({
       newFile = is.na(seqId),
       seqId = ifelse(newFile, newSeq, seqId)
     ) %>% select(-newSeq)
-  
+
   #generate the data to fill the mixDetails table
-  mixDetails = rbind(newFiles, files %>% filter(!id %in% newFileIds) %>% 
+  mixDetails = bind_rows(newFiles, files %>% filter(!id %in% newFileIds) %>% 
                        mutate(newFile = F)) %>% 
-    left_join(raData %>% select(-relativeAbundance, -type, -readCount, -readsUsed), 
+    left_join(raData %>% 
+                select(-any_of(c("relativeAbundance", "coverage", "genomeSize")), 
+                       -type, -readCount, -readLength, -readsUsed), 
               by = "id") %>% mutate(runId = runId)
-  
   #If the output file file will be overwritten, delete old one first from the database
   q = dbSendQuery(myConn,"PRAGMA foreign_keys = ON")
   dbClearResult(q)
@@ -632,12 +641,14 @@ tryCatch({
   
   #Insert the new files into seqData
   newSeqData = mixDetails %>% filter(newFile) %>% 
-    group_by(seqId,sampleName,readCount) %>% 
+    group_by(seqId,sampleName,readCount, readLength) %>% 
     summarise(SRR = getFromSRA[1],.groups = "drop")
   
-  q = dbSendQuery(myConn, "INSERT INTO seqData (seqId,sampleName,readCount,readLength,SRR) VALUES(?,?,?,?)",
-              params = list(newSeqData$seqId, newSeqData$sampleName, 
-                            newSeqData$readCount, newSeqData$readLength, newSeqData$SRR))
+  q = dbSendQuery(
+    myConn, 
+    "INSERT INTO seqData (seqId,sampleName,readCount,readLength,SRR) VALUES(?,?,?,?,?)",
+    params = list(newSeqData$seqId, newSeqData$sampleName,
+                  newSeqData$readCount, round(newSeqData$readLength, 2), newSeqData$SRR))
   dbClearResult(q)
   
   #Insert the new files into seqFiles
@@ -650,16 +661,30 @@ tryCatch({
   dbClearResult(q)
   
   #Add the meta data
-  mixDetails = mixDetails %>% 
-    select(runId, seqId,type,relativeAbundance,readsUsed) %>% distinct()
-  
-  q = dbSendQuery(myConn, "INSERT INTO mixDetails \
+  if("relativeAbundance" %in% colnames(raData)){
+    mixDetails = mixDetails %>% 
+      select(runId, seqId,type,relativeAbundance,readsUsed) %>% distinct()
+    
+    q = dbSendQuery(myConn, "INSERT INTO mixDetails \
                  (runId,seqId,type,relativeAbundance,nReadsUsed) \
                  VALUES(?,?,?,?,?)",
-                  params = list(mixDetails$runId, mixDetails$seqId, toupper(mixDetails$type),
-                                mixDetails$relativeAbundance, mixDetails$readsUsed))
-  dbClearResult(q)
-  dbDisconnect(myConn)
+                    params = list(mixDetails$runId, mixDetails$seqId, toupper(mixDetails$type),
+                                  mixDetails$relativeAbundance, mixDetails$readsUsed))
+    dbClearResult(q)
+    dbDisconnect(myConn)
+  } else {
+    mixDetails = mixDetails %>% 
+      select(runId, seqId,type,coverage,readsUsed) %>% distinct()
+    
+    q = dbSendQuery(myConn, "INSERT INTO mixDetails \
+                 (runId,seqId,type,coverage,nReadsUsed) \
+                 VALUES(?,?,?,?,?)",
+                    params = list(mixDetails$runId, mixDetails$seqId, toupper(mixDetails$type),
+                                  mixDetails$coverage, mixDetails$readsUsed))
+    dbClearResult(q)
+    dbDisconnect(myConn)
+  }
+ 
   
   newLogs = rbind(newLogs, list(as.integer(Sys.time()), 9, 
                                 "Database successfully updated"))

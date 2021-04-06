@@ -9,5 +9,6 @@ temp/*
 **.fastq
 **.fasta
 *test*
+*backup*
 **.db
 dataAndScripts/lastError
