@@ -5,6 +5,7 @@
 
 --- SETUP.SH ---
 Run the setup.sh script to verify all dependencies and to test the pipeline.
+THe first time a database will be created in the dataAndScripts folder
 
 Arguments [h|t]
  -h Read the help documentation
@@ -33,16 +34,18 @@ IMPORTANT: Update the paths to all dependencies in the 'settings.txt' file
 
 
 --- METAMIXER.SH ---
-Mix multiple isolate WGS files together to create artificial metagenomes 
+Mix multiple isolate fastq files together to create artificial metagenomes 
 
-Arguments [h|i|o|l|u|a|b|m|t|f|v]
+Arguments [h|i|o|l|u|a|b|d|m|t|f|v]
  -h Read the help documentation
  
 # Required
- -i The input file (.csv) containing all samples to be mixed
+ -i The input file (.csv) containing all samples to be mixed (details see below)
  -o The location to save the output file. Filename should end with a fastq.gz extension
 
 # Optional
+ -d (optional) Change default value of the genomeSize column in the input file. 
+     Default can also be changed in the settings.txt file
  -m (optional) TRUE or FALSE. 
      Generate a meta-data JSON file in the same folder as the output file.
      Default can be changed in the settings.txt file
@@ -69,23 +72,27 @@ Arguments [h|i|o|l|u|a|b|m|t|f|v]
 	 bases used for the isolates and the bases in the background
 
 
-Input file details --
-This is a .csv file with the following columns
+### INPUT FILE FORMAT ###
+
+This is a comma separated CSV file with the following columns
  - type: either I for isolate file or B for background file
    * Minimum of 2 I files if no B file
-   * Max 1 B file and 1 or more I files
+   * Max 1 B file with 1 or more I files
  - sampleName (optional): custom name for the different input files
+ 
  DEPENDING ON PREFERENCE EITHER
 	 - relativeAbundance: relative abundance of the file in the final metagenome (0-1).
 		The sum of all must be 1.0 if only isolates 
 		The sum must be < 1 when there is a background (its RA will be calculated)
 	OR
 	 - coverage: The times a genome should be covered
-	 - genomeSize: The size of each genome in bases (if not set, defaults to 3.7e+6)
+
+ - genomeSize: The size of each genome in basepairs (e.g. 3.7e6)
+    if not set or missing values, defaults to value of argument -d
  - readFile: full path to the first read file (fastq.gz format)
  - readFile2: full path to the second read file (fastq.gz format)
     Leave empty in case of 1 interleaved data file
- - getFromSRA: fill in the SRR (leave readFile/readFile blank)
+ - getFromSRA: fill in the SRR (leave readFile/readFile2 blank)
     The file will be downloaded from SRA 
  - Any other columns will be ignored, but put in the meta-data JSON file if generated
 

@@ -13,6 +13,7 @@ fasterq=/opt/sratoolkit.2.10.8/bin/fasterq-dump
 sraDownloadFolder=
 
 --- METAMIXER.SH
+metaMixerDefaultGenomeSize=3.7e6
 metaMixerMetaData=TRUE
 metaMixerVerbose=TRUE
 metaMixerTemp=

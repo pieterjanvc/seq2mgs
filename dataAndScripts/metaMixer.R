@@ -39,6 +39,7 @@ tempFolder = formatPath(as.character(args[[8]]))
 runId = as.integer(args[[9]])
 minBackBases = max(as.integer(args[[10]]), 0, na.rm = T)
 maxBackBases = min(as.integer(args[[11]]), Inf, na.rm = T)
+defGenomeSize = as.integer(args[[12]])
 oversample = T 
 
 #Grab the location of the reformat script from the settings file
@@ -165,17 +166,17 @@ tryCatch({
       mutate(
         genomeSize = case_when(
           type == "b" ~ NA_real_,
-          is.na(genomeSize) ~ 3.7e6,
+          is.na(genomeSize) ~ defGenomeSize,
           TRUE ~ genomeSize),
         coverage = ifelse(type == "b", NA, coverage)
         )
-  } else if("coverage" %in% allCols) {
-    files$genomeSize = ifelse(files$type == "b", NA, 3.7e6)
+  } else {
+    files$genomeSize = ifelse(files$type == "b", NA, defGenomeSize)
     files$coverage[files$type == "b"] = NA
     finalMessage = paste(
       finalMessage, 
-      "  NOTE: the default bacterial genome size estimation of 3.7Mbp\n",
-      "   was used to calculate the relative abundance or coverage\n")
+      "  NOTE: the default genome size estimation of ", round(defGenomeSize / 1000000, 3), 
+      "Mbp\n   was used to calculate the relative abundance or coverage\n")
   }
   
   #Check if files need to be downloaded
@@ -428,7 +429,7 @@ tryCatch({
     
   } else if(any(raData$type == "b")){ ### RA WITH BACKGROUND
     
-    if(F){
+    if(T){
       raData = raData %>% 
         mutate(genomeCorrection = genomeSize / 
                  genomeSize[genomeSize == min(genomeSize, na.rm = T)][1])
@@ -454,20 +455,21 @@ tryCatch({
 
   } else { ### RA WITHOUT BACKGROUND
     
-    if(F){
-      raData$genomeCorrection = raData$genomeSize
+    #Correct for genome size (larger needs more reads for same RA)
+    if(T){
+      raData$genomeCorrection = 1 / (raData$genomeSize / min(raData$genomeSize))
     } else {
       raData$genomeCorrection = 1
     }
     
     #Find the file with the fewest bases available for the RA
     readCorrection = raData %>% mutate(
-      val = readCount * readLength * relativeAbundance / genomeCorrection
+      val = readCount * readLength * relativeAbundance * genomeCorrection
     ) %>% filter(val == min(val)) %>% slice(1) %>% 
       mutate(val = readCount * readLength * genomeCorrection / relativeAbundance) %>% 
       pull(val)
     
-    #Adjust the other file's bases needed + correct for genome if set
+    #Adjust the other file's bases needed + correct for genome
     raData = raData %>% mutate(
       readsNeeded = readCorrection * relativeAbundance / (readLength * genomeCorrection)
     )
@@ -727,6 +729,7 @@ tryCatch({
                                 "Database successfully updated"))
 
 }, 
+
 finally = {
   #Submit the logs, even in case of error so we know where things went wrong
   

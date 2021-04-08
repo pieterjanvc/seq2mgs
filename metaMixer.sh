@@ -36,7 +36,7 @@ updateDBwhenError() {
 }
 
 #Options when script is run
-while getopts ":hi:o:t:l:u:a:b:m:fv:" opt; do
+while getopts ":hi:o:t:l:u:a:b:d:m:fv:" opt; do
   case $opt in
 	h) echo -e "\n"
 	   awk '/--- metaMixer.SH ---/,/-- END metaMixer.SH ---/' $baseFolder/readme.txt 
@@ -56,6 +56,8 @@ while getopts ":hi:o:t:l:u:a:b:m:fv:" opt; do
 	a) minBackBases="${OPTARG}"
     ;;
 	b) maxBackBases="${OPTARG}"
+    ;;
+	d) defaultGenomeSize="${OPTARG}"
     ;;
 	m) metaData="${OPTARG}"
     ;;
@@ -105,6 +107,12 @@ fi
 
 if [ ! -z ${maxBackBases+x} ] && [[ ! "$maxBackBases" =~ ^[0-9\.+-eE]+$ ]]; then 
 	echo -e "\n\e[91mThe max base limit must be a positive integer\e[0m"; exit 1; 
+fi
+
+if [ -z ${defaultGenomeSize+x} ]; then 
+	defaultGenomeSize=`grep -oP "metaMixerDefaultGenomeSize\s*=\s*\K(.*)" $baseFolder/settings.txt`
+elif [[ ! "$defaultGenomeSize" =~ ^[0-9\.+-eE]+$ ]]; then 
+	echo -e "\n\e[91mThe defaultGenomeSize must be a positive integer\e[0m"; exit 1; 
 fi
 
 if [ -z ${tempFolder+x} ]; then 
@@ -162,7 +170,7 @@ rPath=`grep -oP "rscript\s*=\s*\K(.*)" $baseFolder/settings.txt`
 $rPath $baseFolder/dataAndScripts/metaMixer.R \
 	$baseFolder $inputFile $outputFile "$minBases" \
 	"$maxBases" $metaData $verbose $tempFolder $runId \
-	"$minBackBases" "$maxBackBases"
+	"$minBackBases" "$maxBackBases" "$defaultGenomeSize"
 
 if [ $verbose == T ]; then
 	echo -e "\e[32m"`date "+%T"`" - Finished mixing reads\n\e[0m"
