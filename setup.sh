@@ -113,6 +113,12 @@ if [ -z `command -v $testTool` ]; then
 	$baseFolder/settings.txt"\e[0m"
 	updateDBwhenError "$runId" "The bbmap package does not seem to be installed"
 	exit 1;
+elif [ -z `command -v java` ]; then 
+    echo -e "\e[91mThe bbmap package is installed, but the java dependency is not\n"\
+	"Make sure to install java (version 7+) on your system\n"\
+	$baseFolder/settings.txt"\e[0m"
+	updateDBwhenError "$runId" "The java dependency does not seem to be installed"
+	exit 1;
 fi;
 $sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)

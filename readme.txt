@@ -18,6 +18,7 @@ The following software needs to be installed:
 - R version 4.0+
   * Packages: RSQLite, tidyverse (with dplyr 1.0+)
   * Precompiled versions: https://www.r-project.org/ 
+    OR: https://docs.rstudio.com/resources/install-r/
 - bbmap (reformat.sh)
   * https://jgi.doe.gov/data-and-tools/bbtools/bb-tools-user-guide/installation-guide/
 - sratoolkit (fasterq-dump)
