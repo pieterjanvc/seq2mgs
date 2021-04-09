@@ -167,16 +167,20 @@ tryCatch({
         genomeSize = case_when(
           type == "b" ~ NA_real_,
           is.na(genomeSize) ~ defGenomeSize,
-          TRUE ~ genomeSize),
-        coverage = ifelse(type == "b", NA, coverage)
+          TRUE ~ genomeSize)
         )
   } else {
     files$genomeSize = ifelse(files$type == "b", NA, defGenomeSize)
-    files$coverage[files$type == "b"] = NA
     finalMessage = paste(
       finalMessage, 
       "  NOTE: the default genome size estimation of ", round(defGenomeSize / 1000000, 3), 
       "Mbp\n   was used to calculate the relative abundance or coverage\n")
+  }
+  
+  #Check coverage
+  if("coverage" %in% allCols){
+    files = files %>% 
+      mutate(coverage = ifelse(type == "b", NA, coverage))
   }
   
   #Check if files need to be downloaded
