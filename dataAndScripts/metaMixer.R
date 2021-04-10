@@ -58,6 +58,10 @@ sraDownloadFolder = ifelse(length(sraDownloadFolder) == 0,
 #Grab the location of the fasterq-dump script from the settings file
 fasterq = system(sprintf("grep -oP \"fasterq\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
                                 baseFolder), intern = T)
+
+#Grab the metaMixerMaxFileN from the settings file
+maxNfiles = as.integer(system(sprintf("grep -oP \"metaMixerMaxResample\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
+                         baseFolder), intern = T))
 															
 #Check if pigz is available instead of gzip for faster zipping
 zipMethod = ifelse(length(suppressWarnings(
@@ -146,13 +150,31 @@ tryCatch({
   }
   
   #Check if limits are used correctly
+  sumRA = ""
   if("coverage" %in% allCols){
     if(minBases > 0 | maxBases < Inf){
       finalMessage = paste(
         finalMessage, 
         "  NOTE: The set limits do not apply here, use the a|b arguments instead\n")
     }
+    
+    if(is.na(sum(files$coverage[files$type != "b"]))){
+      sumRA = "*** The coverage of each isolate must be a numeric value >= 0"
+    }
+    
+    files = files %>% 
+      mutate(coverage = ifelse(type == "b", NA, coverage))
+    
   } else {
+    
+    #Calculate the background RA if present
+    files = files %>% 
+      mutate(relativeAbundance = ifelse(str_detect(type, "i|I"), relativeAbundance, 
+                                        1 - sum(relativeAbundance[str_detect(type, "i|I")])))
+    #Check that sum of RA = 1
+    sumRA = ifelse(sum(files$relativeAbundance) != 1, 
+                   "*** The sum of relative abundances is not 1", "")
+    
     if(minBackBases > 0 | maxBackBases < Inf){
       finalMessage = paste(
         finalMessage, 
@@ -164,23 +186,18 @@ tryCatch({
   if("genomeSize" %in% allCols){
     files = files %>% 
       mutate(
+        genomeSize = as.integer(genomeSize),
         genomeSize = case_when(
-          type == "b" ~ NA_real_,
+          type == "b" ~ NA_integer_,
           is.na(genomeSize) ~ defGenomeSize,
           TRUE ~ genomeSize)
         )
   } else {
-    files$genomeSize = ifelse(files$type == "b", NA, defGenomeSize)
+    files$genomeSize = as.integer(ifelse(files$type == "b", NA, defGenomeSize))
     finalMessage = paste(
       finalMessage, 
       "  NOTE: the default genome size estimation of ", round(defGenomeSize / 1000000, 3), 
       "Mbp\n   was used to calculate the relative abundance or coverage\n")
-  }
-  
-  #Check coverage
-  if("coverage" %in% allCols){
-    files = files %>% 
-      mutate(coverage = ifelse(type == "b", NA, coverage))
   }
   
   #Check if files need to be downloaded
@@ -220,23 +237,7 @@ tryCatch({
     files$getFromSRA = NA
   }
   
-  sumRA = ""
-  if("coverage" %in% allCols){
-    #Check coverage
-    if(!all(files %>% filter(type == "i") %>% pull(coverage) %>% is.numeric())){
-      sumRA = "*** The coverage of each isolate must be a numeric value >= 0"
-    }
-    
-  } else {
-    #Calculate the background RA if present
-    files = files %>% 
-      mutate(relativeAbundance = ifelse(str_detect(type, "i|I"), relativeAbundance, 
-                                        1 - sum(relativeAbundance[str_detect(type, "i|I")])))
-    #Check that sum of RA = 1
-    sumRA = ifelse(sum(files$relativeAbundance) != 1, 
-                   "*** The sum of relative abundances is not 1", "")
-  }
-  
+
   files = files %>% 
     mutate(id = 1:n(), 
            sampleName = ifelse(sampleName == "", paste0("sample", 1:n()), sampleName)) %>% 
@@ -283,7 +284,7 @@ tryCatch({
   
   if(errorMessage != ""){
     newLogs = rbind(newLogs, list(as.integer(Sys.time()), 2, "Errors in input file, stop"))
-    stop(paste0("Incorrect input file\n\n", errorMessage))
+    stop("\n\nIncorrect input file\n\n", errorMessage, "\n\n")
   }
   
   if(verbose){
@@ -500,6 +501,19 @@ tryCatch({
                                 "Number of reads needed from each file calculated"))
   
   raData = raData %>% select(-any_of("genomeCorrection")) 
+  
+  #Check if the file times limit is not crossed
+  check = raData$id[raData$fileNeeded > maxNfiles]
+  if(length(check) > 0){
+    check = files %>% filter(id %in% check) %>% pull(fileName)
+    stop("\n\nWith the current input settings, the files below would require",
+         " being resampled >", maxNfiles, " times which would take a very long time.",
+         " If you really want to do this, you can adjust the 'metaMixerMaxResample'",
+         " parameter in the settings.txt file and run the script again.\n\nFiles: ",
+         paste(check, collapse = ", "), "\n\nPotiential causes:\n",
+         "  - Too large a coverage or genome size\n",
+         "  - Very small file sizes (i.e. low amount of reads)\n\n")
+  }
 
   # ---- Filter and merge the files ----
   #*************************************
