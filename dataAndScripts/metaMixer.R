@@ -52,6 +52,14 @@ sraDownloadFolder = suppressWarnings(
   system(sprintf("grep -oP \"sraDownloadFolder\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt",
                  baseFolder), intern = T))
 
+#Check if the temp / sraDownloadFolder are the default ones
+if(!str_detect(tempFolder, "^\\/")){
+  tempFolder = paste0(baseFolder, "/", tempFolder)
+}
+if(!str_detect(sraDownloadFolder, "^\\/")){
+  sraDownloadFolder = paste0(baseFolder, "/", sraDownloadFolder)
+}
+
 #Grab the location of the fasterq-dump script from the settings file
 fasterq = system(sprintf("grep -oP \"fasterq\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
                                 baseFolder), intern = T)
