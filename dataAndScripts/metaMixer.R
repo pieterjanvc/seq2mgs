@@ -51,9 +51,6 @@ reformatScript = system(sprintf(
 sraDownloadFolder = suppressWarnings(
   system(sprintf("grep -oP \"sraDownloadFolder\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt",
                  baseFolder), intern = T))
-sraDownloadFolder = ifelse(length(sraDownloadFolder) == 0, 
-                           sprintf("%s/SRAdownloads", baseFolder), 
-                           formatPath(sraDownloadFolder))		
 
 #Grab the location of the fasterq-dump script from the settings file
 fasterq = system(sprintf("grep -oP \"fasterq\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
@@ -231,7 +228,7 @@ tryCatch({
       getFromSRA = unique(files$getFromSRA[!is.na(files$getFromSRA)])
     }
     
-    cat("done\n            ")
+    cat("done\n           ")
   } else {
     getFromSRA = NA
     files$getFromSRA = NA
@@ -367,7 +364,7 @@ tryCatch({
       
       if(verbose){
         cat(format(Sys.time(), "%H:%M:%S"),"- Counting reads in",
-            myFile$fileName[1], "... ")
+            myFile$fileName[1], "...\n            ")
       }
   
       #Count the lines in the file (4 lines = 1 read)
