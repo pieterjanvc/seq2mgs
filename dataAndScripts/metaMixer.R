@@ -300,7 +300,7 @@ tryCatch({
   
   # ---- Download from SRA if needed ----
   #**************************************
-  if(!is.na(getFromSRA)){
+  if(any(!is.na(getFromSRA))){
     if(verbose){
       cat(format(Sys.time(), "%H:%M:%S"),"- Get data from SRA ... \n")
     }
@@ -474,8 +474,8 @@ tryCatch({
     
     #Find the file with the fewest bases available for the RA
     readCorrection = raData %>% mutate(
-      val = readCount * readLength * relativeAbundance * genomeCorrection
-    ) %>% filter(val == min(val)) %>% slice(1) %>% 
+      val = readCount * readLength * relativeAbundance / genomeCorrection
+    ) %>% filter(val == max(val)) %>% slice(1) %>% 
       mutate(val = readCount * readLength * genomeCorrection / relativeAbundance) %>% 
       pull(val)
     
