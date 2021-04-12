@@ -106,10 +106,10 @@ echo -e " - R and dependent packages are present"
 
 
 #Check if bbmap is installed or the reformat.sh script can be reached
-testTool=`grep -oP "reformat\s*=\s*\K(.*)" $baseFolder/settings.txt`
-if [ -z `command -v $testTool` ]; then 
+testTool=`grep -oP "bbmap\s*=\s*\K(.*)" $baseFolder/settings.txt`
+if [ -z `command -v $testTool/reformat.sh` ]; then 
 	echo -e "\e[91mThe bbmap package does not seem to be installed as a system application\n"\
-	"If you have unzipped the package in a custom folder,\n update the path to the 'reformat.sh' script in the settings file\n"\
+	"If you have unzipped the package in a custom folder,\n update the path to the bbmap folder in the settings file\n"\
 	$baseFolder/settings.txt"\e[0m"
 	updateDBwhenError "$runId" "The bbmap package does not seem to be installed"
 	exit 1;
