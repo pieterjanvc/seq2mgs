@@ -558,15 +558,17 @@ tryCatch({
     partialReads = 0
     if(partialFile != 0){
       partialReads = system(sprintf(
-        "%s/reformat.sh --samplerate=%0.10f in1=%s in2=%s out=%s/tempFile%i_partial.fastq.gz 2>&1",
-        bbmap, partialFile, toMerge$file1[i], toMerge$file2[i],
-        tempFolder, i), intern = T)
+        "%s/reformat.sh --samplerate=%0.10f in1=%s in2=%s out=%s/partial.fastq.gz 2>&1",
+        bbmap, partialFile, toMerge$file1[i], toMerge$file2[i], tempFolder), 
+        intern = T)
       partialReads = str_extract(partialReads, "\\d+(?=\\sreads\\s\\()")
       partialReads = as.integer(partialReads[!is.na(partialReads)])
       
       system(sprintf(
-        "%s/rename.sh in=%s/tempFile%i_partial.fastq.gz out=%s/tempFile%i_partial.fastq.gz ow=t prefix=fileId%i_partial_read 2>&1",
-        bbmap, tempFolder, i, tempFolder, i, toMerge$id[i]), intern = T)
+        "%s/rename.sh in=%s/partial.fastq.gz out=%s/tempFile%i_partial.fastq.gz ow=t prefix=fileId%i_partial_read 2>&1",
+        bbmap, tempFolder, tempFolder, i, toMerge$id[i]), intern = T)
+      
+      system(sprintf("rm %s/partial.fastq.gz", tempFolder), intern = T)
     }
     
     toMerge$readCount[i] = floor(toMerge$fileNeeded[i]) * toMerge$readCount[i] + 
