@@ -43,9 +43,9 @@ defGenomeSize = as.integer(args[[12]])
 oversample = T 
 
 #Grab the location of the reformat script from the settings file
-reformatScript = system(sprintf(
-  "grep -oP \"reformat\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
-  baseFolder), intern = T)
+bbmap = formatPath(system(sprintf(
+  "grep -oP \"bbmap\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
+  baseFolder), intern = T))
 
 #Grab the location of the sraDownloadFolder from the settings file
 sraDownloadFolder = suppressWarnings(
@@ -517,30 +517,33 @@ tryCatch({
     partialFile = toMerge$fileNeeded[i] - floor(toMerge$fileNeeded[i])
     
     #Generate a full copy of the file with different ID if file needed more than once
-    if(fullFile > 0 & toMerge$fileNeeded[i] != 1.0){
+    if(fullFile > 0){
       for(j in 1:fullFile){
+        # system(sprintf(
+        #   "%s/reformat.sh in1=%s in2=%s out=stdout.fastq 2>/dev/null | awk 'NR %% 4 == 1{sub(/@/,\"@%i_\",$0);print;next}\
+        #   NR %% 2 == 1{print \"+\";next}{print}' | %s -c > %s/tempFile%i_full%i.fastq.gz",
+        #   bbmap, toMerge$file1[i], toMerge$file2[i],
+        #   j, zipMethod, tempFolder, i, j), intern = F)
         system(sprintf(
-          "%s in1=%s in2=%s out=stdout.fastq 2>/dev/null | awk 'NR %% 4 == 1{sub(/@/,\"@%i_\",$0);print;next}\
-          NR %% 2 == 1{print \"+\";next}{print}' | %s -c > %s/tempFile%i_full%i.fastq.gz",
-          reformatScript, toMerge$file1[i], toMerge$file2[i],
-          j, zipMethod, tempFolder, i, j), intern = F)
+          "%s/rename.sh in=%s in2=%s out=%s/tempFile%i_full%i.fastq.gz int=t prefix=fileId%i_full_%i_read 2>/dev/null",
+          bbmap, toMerge$file1[i], toMerge$file2[i],
+          tempFolder, i, j, toMerge$id[i], j), intern = F)
       }
-    } else if(toMerge$fileNeeded[i] == 1.0){
-      system(sprintf(
-        "%s in1=%s in2=%s out=%s/tempFile%i_partial.fastq.gz 2>/dev/null",
-        reformatScript, toMerge$file1[i], toMerge$file2[i],
-        tempFolder, i), intern = F)
     }
     
     #Filter the fraction of reads needed 
     partialReads = 0
     if(partialFile != 0){
       partialReads = system(sprintf(
-        "%s --samplerate=%0.10f in1=%s in2=%s out=%s/tempFile%i_partial.fastq.gz 2>&1",
-        reformatScript, partialFile, toMerge$file1[i], toMerge$file2[i],
+        "%s/reformat.sh --samplerate=%0.10f in1=%s in2=%s out=%s/tempFile%i_partial.fastq.gz 2>&1",
+        bbmap, partialFile, toMerge$file1[i], toMerge$file2[i],
         tempFolder, i), intern = T)
       partialReads = str_extract(partialReads, "\\d+(?=\\sreads\\s\\()")
       partialReads = as.integer(partialReads[!is.na(partialReads)])
+      
+      system(sprintf(
+        "%s/rename.sh in=%s/tempFile%i_partial.fastq.gz out=%s/tempFile%i_partial.fastq.gz ow=t prefix=fileId%i_partial_read 2>&1",
+        bbmap, tempFolder, i, tempFolder, i, toMerge$id[i]), intern = T)
     }
     
     toMerge$readCount[i] = floor(toMerge$fileNeeded[i]) * toMerge$readCount[i] + 
@@ -565,6 +568,10 @@ tryCatch({
   }
   
   system(paste0("cat ", tempFolder, "/*.fastq.gz > ", outputFile))
+  #Shuffle the final reads
+  system(sprintf(
+    "%s/shuffle.sh in=%s out=%s overwrite=t 2>&1",
+    bbmap, outputFile, outputFile), intern = T)
   
   #Write the meta data as JSON (if requested)
   if(metaData){

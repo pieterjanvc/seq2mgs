@@ -8,7 +8,7 @@
 --- GENERAL DEPENDENCIES
 sqlite3=/opt/sqlite-tools/sqlite3
 rscript=/opt/R/4.0.2/bin/Rscript
-reformat=/opt/bbmap/reformat.sh
+bbmap=/opt/bbmap
 fasterq=/opt/sratoolkit.2.10.8/bin/fasterq-dump
 sraDownloadFolder=
 
