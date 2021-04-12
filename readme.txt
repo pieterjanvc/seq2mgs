@@ -23,6 +23,8 @@ The following software needs to be installed:
   * https://jgi.doe.gov/data-and-tools/bbtools/bb-tools-user-guide/installation-guide/
 - sratoolkit (fasterq-dump)
   * https://github.com/ncbi/sra-tools
+  * Make sure to configure the tool before using it!
+    https://github.com/ncbi/sra-tools/wiki/03.-Quick-Toolkit-Configuration
 
 Optional software
 - pigz

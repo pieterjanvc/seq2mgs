@@ -118,9 +118,7 @@ fi
 if [ -z ${tempFolder+x} ]; then 
 	tempFolder=`grep -oP "metaMixerTemp\s*=\s*\K(.*)" $baseFolder/settings.txt`
 	tempFolder=${tempFolder%/}
-	if [ -z ${tempFolder} ]; then
-		tempFolder=$baseFolder/temp #Use default temp if none assigned
-	elif [ ! -d `dirname $tempFolder` ]; then	
+    if [ ! -d `dirname $tempFolder` ]; then	
 		echo -e "\n\e[91mThe default temp directory set in the settings file does not exist\e[0m"; exit 1;
 	fi
 elif [ ! -d `dirname $tempFolder` ]; then	

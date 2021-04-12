@@ -10,10 +10,11 @@ sqlite3=/opt/sqlite-tools/sqlite3
 rscript=/opt/R/4.0.2/bin/Rscript
 bbmap=/opt/bbmap
 fasterq=/opt/sratoolkit.2.10.8/bin/fasterq-dump
-sraDownloadFolder=
+sraDownloadFolder=SRAdownloads
 
 --- METAMIXER.SH
 metaMixerDefaultGenomeSize=3.7e6
+metaMixerMaxResample=10
 metaMixerMetaData=TRUE
 metaMixerVerbose=TRUE
-metaMixerTemp=
+metaMixerTemp=temp
