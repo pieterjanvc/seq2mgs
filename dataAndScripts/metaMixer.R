@@ -593,7 +593,15 @@ tryCatch({
   }
   
   system(paste0("cat ", tempFolder, "/*.fastq.gz > ", outputFile))
-  #Shuffle the final reads
+  
+  if(verbose){
+    cat(format(Sys.time(),"%H:%M:%S ")," done\n")
+  }
+  
+  #Shuffle the final reads.
+  if(verbose){
+    cat(format(Sys.time(), "%H:%M:%S"),"- Shuffle all the reads ... ")
+  }
   system(sprintf(
     "%s/shuffle.sh in=%s out=%s overwrite=t 2>&1",
     bbmap, outputFile, outputFile), intern = T)
