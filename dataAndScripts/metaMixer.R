@@ -76,7 +76,7 @@ zipMethod = ifelse(length(suppressWarnings(
 #Create temp folder
 tempName = paste0("metaMixer_", as.integer(Sys.time()))
 tempFolder = paste0(tempFolder, "/", tempName)
-dir.create(tempFolder)
+dir.create(tempFolder, showWarnings = F)
 
 #Get the readcounts of previous files from the db in case the files are used again (saves time)
 myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/metaMixer.db", baseFolder))
@@ -128,13 +128,17 @@ tryCatch({
   }
   
   if(!any(c("readFile", "getFromSRA") %in% allCols)){
-    reqCols = " readFile or getFromSRA must be presentt"
+    reqCols = " readFile and/or getFromSRA must be present"
   }
   
   if(reqCols != ""){
     reqCols = paste0("*** Issues with columns:\n", reqCols)
     newLogs = rbind(newLogs, list(as.integer(Sys.time()), 2, "Errors in input file, stop"))
     stop(paste0("Incorrect input file\n\n", reqCols))
+  }
+  
+  if(! "sampleName" %in% allCols){
+    files$sampleName = ""
   }
   
   #Type combo check
@@ -210,30 +214,41 @@ tryCatch({
   if(any(colnames(files) %in% "getFromSRA")){
     
     cat("\n            Checking if SRA files are available ... ")
-    #Look up the SRR for the ones given
-    files$SRAexists = T
-    files$SRAexists[!is.na(files$getFromSRA)] = 
-      str_extract_all(
-        GET(paste0("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?",
-                   "db=sra&term=", paste(files$getFromSRA[!is.na(files$getFromSRA)],
-                                         collapse = "+"))) %>% 
-          content("text"), 
-        ".(?=\\</Count\\>)")[[1]][-1] == "1"
+    
+    #Check which files have been downloaded and if paired or single
+    alreadyDownloaded = data.frame(
+      getFromSRA = list.files(sraDownloadFolder, pattern = ".fastq.gz") %>% 
+        str_remove("_?\\d?.fastq.gz$")) %>% 
+      group_by(getFromSRA) %>% summarise(SRAexists = n())
+    
+    files = files %>% left_join(alreadyDownloaded, by = "getFromSRA")
+    
+    #Look up the SRR for the ones missing
+    files$SRAexists[!is.na(files$getFromSRA) & is.na(files$SRAexists)] = 
+      sapply(files$getFromSRA[!is.na(files$getFromSRA) & is.na(files$SRAexists)], function(x){
+        system(sprintf("/opt/sratoolkit.2.10.8/bin/fastq-dump -X 1 -Z --split-spot %s 2>/dev/null | wc -l",
+                       x),
+               intern = T)
+      }) %>% as.integer() / 4
     
     #Check if the files exist
-    if(!all(files$SRAexists)){
+    if(!all(files$SRAexists > 0, na.rm = T)){
       SRAexists = paste("*** The following files do not exist on SRA:\n    ",
-                        paste(files$getFromSRA[!files$SRAexists], collapse = "     \n"))
+                        paste(files$getFromSRA[files$SRAexists == 0], collapse = "     \n"))
     } else {
       # Add the future file locations to the list
       files = files %>% mutate(
-        readFile = ifelse(is.na(getFromSRA), readFile, 
-                          paste0(sraDownloadFolder, "/", getFromSRA, "_1.fastq.gz")),
-        readFile2 = ifelse(is.na(getFromSRA), readFile2, 
+        readFile = as.character(readFile),
+        readFile = case_when(
+          is.na(SRAexists) ~ readFile, 
+          SRAexists == 1 ~ paste0(sraDownloadFolder, "/", getFromSRA, ".fastq.gz"),
+          TRUE ~ paste0(sraDownloadFolder, "/", getFromSRA, "_1.fastq.gz")),
+        readFile2 = ifelse(SRAexists != 2, readFile2,
                            paste0(sraDownloadFolder, "/", getFromSRA, "_2.fastq.gz"))
       )
       
       getFromSRA = unique(files$getFromSRA[!is.na(files$getFromSRA)])
+      getFromSRA = getFromSRA[!getFromSRA %in% alreadyDownloaded$getFromSRA]
     }
     
     cat("done\n           ")
@@ -307,8 +322,7 @@ tryCatch({
     newLogs = rbind(newLogs, list(as.integer(Sys.time()), 10, "Get data from SRA"))
     
     for(SRR in getFromSRA){
-      if(all(file.exists(sprintf(paste0("%s/%s_",1:2,".fastq.gz"), 
-                                 sraDownloadFolder, SRR)))){
+      if(length(list.files(sraDownloadFolder, pattern = SRR)) > 0){
         cat("          ",SRR, ": already downloaded\n")
         newLogs = rbind(newLogs, list(as.integer(Sys.time()), 11, 
                                       paste(SRR, "was already downloaded")))
@@ -317,10 +331,17 @@ tryCatch({
         system(sprintf(
           "%s %s -O %s -t %s/temp 2>/dev/null", 
           fasterq, SRR, sraDownloadFolder, sraDownloadFolder), intern = F)
+        
         cat("zipping ... ")
-        system(sprintf(
-          "find %s/%s_1.fastq %s/%s_2.fastq -execdir %s '{}' ';'",
-          sraDownloadFolder, SRR, sraDownloadFolder, SRR, zipMethod), intern = F)
+        if(nrow(files %>% filter(getFromSRA == SRR)) == 1){
+          system(sprintf("%s %s/%s.fastq",
+            zipMethod, sraDownloadFolder, SRR), intern = F)
+        } else {
+          system(sprintf(
+            "find %s/%s_1.fastq %s/%s_2.fastq -execdir %s '{}' ';'",
+            sraDownloadFolder, SRR, sraDownloadFolder, SRR, zipMethod), intern = F)
+        }
+        
         
         cat("done\n")
         newLogs = rbind(newLogs, list(as.integer(Sys.time()), 12, 
