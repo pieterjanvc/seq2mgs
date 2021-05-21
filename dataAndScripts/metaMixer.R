@@ -129,6 +129,9 @@ tryCatch({
   
   if(!any(c("readFile", "getFromSRA") %in% allCols)){
     reqCols = " readFile and/or getFromSRA must be present"
+  } else if(!"readFile" %in% allCols){
+    files$readFile = NA
+    files$readFile2 = NA
   }
   
   if(reqCols != ""){
@@ -218,7 +221,7 @@ tryCatch({
     #Check which files have been downloaded and if paired or single
     alreadyDownloaded = data.frame(
       getFromSRA = list.files(sraDownloadFolder, pattern = ".fastq.gz") %>% 
-        str_remove("_?\\d?.fastq.gz$")) %>% 
+        str_remove(".fastq.gz$|_\\d.fastq.gz")) %>% 
       group_by(getFromSRA) %>% summarise(SRAexists = n())
     
     files = files %>% left_join(alreadyDownloaded, by = "getFromSRA")
