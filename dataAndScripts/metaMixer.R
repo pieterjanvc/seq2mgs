@@ -130,8 +130,8 @@ tryCatch({
   if(!any(c("readFile", "getFromSRA") %in% allCols)){
     reqCols = " readFile and/or getFromSRA must be present"
   } else if(!"readFile" %in% allCols){
-    files$readFile = NA
-    files$readFile2 = NA
+    files$readFile = NA_character_
+    files$readFile2 = NA_character_
   }
   
   if(reqCols != ""){
@@ -613,19 +613,10 @@ tryCatch({
   
   #Merge the temp files into the final one
   if(verbose){
-    cat(format(Sys.time(), "%H:%M:%S"),"- Merge all reads together and write final file ... ")
+    cat(format(Sys.time(), "%H:%M:%S"),"- Merge & shuffle all reads and write final file ... ")
   }
   
   system(paste0("cat ", tempFolder, "/*.fastq.gz > ", outputFile))
-  
-  if(verbose){
-    cat(format(Sys.time(),"%H:%M:%S ")," done\n")
-  }
-  
-  #Shuffle the final reads.
-  if(verbose){
-    cat(format(Sys.time(), "%H:%M:%S"),"- Shuffle all the reads ... ")
-  }
   system(sprintf(
     "%s/shuffle.sh in=%s out=%s overwrite=t 2>&1",
     bbmap, outputFile, outputFile), intern = T)
