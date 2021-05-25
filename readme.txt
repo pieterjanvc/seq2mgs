@@ -1,5 +1,5 @@
 ########## METAMIXER ##########
-##############################
+###############################
    Developed by PJ Van Camp
      vancampn@mail.uc.edu
 
@@ -25,6 +25,7 @@ The following software needs to be installed:
   * https://github.com/ncbi/sra-tools
   * Make sure to configure the tool before using it!
     https://github.com/ncbi/sra-tools/wiki/03.-Quick-Toolkit-Configuration
+	NOTE: if you run this under a different user or root, you need to configure again
 
 Optional software
 - pigz
