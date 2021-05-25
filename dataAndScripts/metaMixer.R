@@ -27,7 +27,7 @@ formatPath = function(path, endWithSlash = F){
   
 }
 
-#Variables from metaMixer.sh script
+#Variables from seq2mgs.sh script
 baseFolder = formatPath(as.character(args[[1]]))
 inputFile = as.character(args[[2]])
 outputFile = as.character(args[[3]])
@@ -64,8 +64,8 @@ if(!str_detect(sraDownloadFolder, "^\\/")){
 fasterq = system(sprintf("grep -oP \"fasterq\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
                                 baseFolder), intern = T)
 
-#Grab the metaMixerMaxFileN from the settings file
-maxNfiles = as.integer(system(sprintf("grep -oP \"metaMixerMaxResample\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
+#Grab the seq2mgsMaxFileN from the settings file
+maxNfiles = as.integer(system(sprintf("grep -oP \"seq2mgsMaxResample\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
                          baseFolder), intern = T))
 															
 #Check if pigz is available instead of gzip for faster zipping
@@ -74,12 +74,12 @@ zipMethod = ifelse(length(suppressWarnings(
   "gzip", "pigz")
 
 #Create temp folder
-tempName = paste0("metaMixer_", as.integer(Sys.time()))
+tempName = paste0("seq2mgs_", as.integer(Sys.time()))
 tempFolder = paste0(tempFolder, "/", tempName)
 dir.create(tempFolder, showWarnings = F)
 
 #Get the readcounts of previous files from the db in case the files are used again (saves time)
-myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/metaMixer.db", baseFolder))
+myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/seq2mgs.db", baseFolder))
 readCounts = dbGetQuery(
   myConn, 
   "SELECT f.*, d.readCount, d.readLength FROM seqFiles as f, seqData as d WHERE f.seqId = d.seqId") %>% 
@@ -537,7 +537,7 @@ tryCatch({
     check = files %>% filter(id %in% check) %>% pull(fileName)
     stop("\n\nWith the current input settings, the files below would require",
          " being resampled >", maxNfiles, " times which would take a very long time.",
-         " If you really want to do this, you can adjust the 'metaMixerMaxResample'",
+         " If you really want to do this, you can adjust the 'seq2mgsMaxResample'",
          " parameter in the settings.txt file and run the script again.\n\nFiles: ",
          paste(check, collapse = ", "), "\n\nPotiential causes:\n",
          "  - Too large a coverage or genome size\n",
@@ -680,7 +680,7 @@ tryCatch({
   #******************************
   
   #Open the connection to the DB
-  myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/metaMixer.db", baseFolder))
+  myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/seq2mgs.db", baseFolder))
   
   #Get the next unique IDs
   # nextFileId = ifelse(nrow(readCounts) == 0, 1, max(readCounts$fileId) + 1)
@@ -789,9 +789,9 @@ finally = {
   #Submit the logs, even in case of error so we know where things went wrong
   
   newLogs$runId = runId
-  newLogs$tool = "metaMixer.R"
+  newLogs$tool = "seq2mgs.R"
 
-  myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/metaMixer.db", baseFolder))
+  myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/seq2mgs.db", baseFolder))
   q = dbSendStatement(
     myConn, 
     "INSERT INTO logs (runId,tool,timeStamp,actionId,actionName) VALUES (?,?,?,?,?)",

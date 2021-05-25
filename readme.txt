@@ -1,5 +1,5 @@
-########## METAMIXER ##########
-###############################
+########## SEQ2MGS ##########
+#############################
    Developed by PJ Van Camp
      vancampn@mail.uc.edu
 
@@ -37,7 +37,7 @@ IMPORTANT: Update the paths to all dependencies in the 'settings.txt' file
 -- END SETUP.SH ---
 
 
---- METAMIXER.SH ---
+--- SEQ2MGS.SH ---
 Mix multiple isolate fastq files together to create artificial metagenomes 
 
 Arguments [h|i|o|l|u|a|b|d|m|t|f|v]
@@ -100,4 +100,4 @@ This is a comma separated CSV file with the following columns
     The file will be downloaded from SRA 
  - Any other columns will be ignored, but put in the meta-data JSON file if generated
 
--- END METAMIXER.SH ---
+-- END SEQ2MGS.SH ---

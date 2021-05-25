@@ -27,7 +27,7 @@ trap 'err_report ${LINENO}' ERR
 
 updateDBwhenError() {
 	#Update the DB
-    $sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
+    $sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"UPDATE scriptUse
 	SET end = '$(date '+%F %T')', status = 'error',
 	info = '$2'
@@ -70,17 +70,17 @@ if [ -z "$testTool" ]; then
 fi;
 echo -e " - SQLite 3 is present"
 
-#Check the metaMixer database and create if needed
-if [ ! -f "$baseFolder/dataAndScripts/metaMixer.db" ]; then
-	$sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" -cmd \
-	".read $baseFolder/dataAndScripts/createMetaMixerDB.sql" ".quit" 
-	echo -e " - No metaMixer database found, a new database was created"
+#Check the seq2mgs database and create if needed
+if [ ! -f "$baseFolder/dataAndScripts/seq2mgs.db" ]; then
+	$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" -cmd \
+	".read $baseFolder/dataAndScripts/createSeq2mgsDB.sql" ".quit" 
+	echo -e " - No seq2mgs database found, a new database was created"
 else 
-	echo -e " - The metaMixer database is present"
+	echo -e " - The seq2mgs database is present"
 fi
 
 #Register the start of the script in the DB
-runId=$($sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
+runId=$($sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO scriptUse (scriptName,start,status) \
 	values('setup.sh','$(date '+%F %T')','running'); \
 	SELECT runId FROM scriptUse WHERE runId = last_insert_rowid()")
@@ -93,13 +93,13 @@ if [ -z `command -v $Rscript` ]; then
 	updateDBwhenError "$runId" "R does not seem to be installed"
 	exit 1;
 fi;
-$sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
+$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.sh',$(date '+%s'),1,'R installed')"
 
 #Check if the correct R packages are installed
 $Rscript $baseFolder/dataAndScripts/setup.R
-$sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
+$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.R',$(date '+%s'),2,'R packages installed')"
 echo -e " - R and dependent packages are present"
@@ -120,7 +120,7 @@ elif [ -z `command -v java` ]; then
 	updateDBwhenError "$runId" "The java dependency does not seem to be installed"
 	exit 1;
 fi;
-$sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
+$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.sh',$(date '+%s'),3,'bbmap (reformat.sh) installed')"
 echo -e " - bbmap (reformat.sh) is present"
@@ -132,7 +132,7 @@ if [ -z `command -v pigz` ]; then
 else
 	message="pigz present"
 fi;
-$sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
+$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.sh',$(date '+%s'),7,'$message')"
 echo -e " - $message"
@@ -145,7 +145,7 @@ if [ -z `command -v $testTool` ]; then
 else
 	message="SRAtoolkit (fasterq-dump) present"
 fi;
-$sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
+$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.sh',$(date '+%s'),7,'$message')"
 echo -e " - $message"
@@ -163,22 +163,22 @@ if [ "$runTests" == "true" ]; then
 	cat $baseFolder/dataAndScripts/testData/input.csv | awk '{gsub(/~/,"'$baseFolder'")}1' > \
 		$baseFolder/dataAndScripts/testData/testInput.csv
 
-	#Run metaMixer.sh
-	$baseFolder/metaMixer.sh -f \
+	#Run seq2mgs.sh
+	$baseFolder/seq2mgs.sh -f \
 		-i $baseFolder/dataAndScripts/testData/testInput.csv \
 		-o $baseFolder/dataAndScripts/testData/testOutput.fastq.gz \
 		-v FALSE
 
-	$sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
+	$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 		"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
-		VALUES($runId,'setup.sh',$(date '+%s'),8,'metaMixer test succesful')"
+		VALUES($runId,'setup.sh',$(date '+%s'),8,'seq2mgs test succesful')"
 	printf "done\n\n"
 	
 	finalMessage="$finalMessage  Mixing test successful\n"
 fi
 
 #Finish script
-$sqlite3 "$baseFolder/dataAndScripts/metaMixer.db" \
+$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"UPDATE scriptUse
 	SET end = '$(date '+%F %T')', status = 'finished'
 	WHERE runId = $runId"
