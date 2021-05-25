@@ -12,3 +12,4 @@ temp/*
 *backup*
 **.db
 dataAndScripts/lastError
+validation/
