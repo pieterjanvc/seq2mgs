@@ -19,17 +19,17 @@ The following software needs to be installed:
   * Packages: RSQLite, tidyverse (with dplyr 1.0+)
   * Precompiled versions: https://www.r-project.org/ 
     OR: https://docs.rstudio.com/resources/install-r/
-- bbmap (reformat.sh)
+- bbmap
   * https://jgi.doe.gov/data-and-tools/bbtools/bb-tools-user-guide/installation-guide/
-- sratoolkit (fasterq-dump)
+- sratoolkit
   * https://github.com/ncbi/sra-tools
   * Make sure to configure the tool before using it!
     https://github.com/ncbi/sra-tools/wiki/03.-Quick-Toolkit-Configuration
-	NOTE: if you run this under a different user or root, you need to configure again
+  NOTE: if you run this under a different user or root, you need to configure again
 
 Optional software
 - pigz
-  * If installed, zipping files will be faster on multi-core machines compared to gzip
+  * If installed, faster zipping with multi-cores
    
 IMPORTANT: Update the paths to all dependencies in the 'settings.txt' file 
  if they are not in the default PATH
@@ -85,11 +85,11 @@ This is a comma separated CSV file with the following columns
  - sampleName (optional): custom name for the different input files
  
  DEPENDING ON PREFERENCE EITHER
-	 - relativeAbundance: relative abundance of the file in the final metagenome (0-1).
-		The sum of all must be 1.0 if only isolates 
-		The sum must be < 1 when there is a background (its RA will be calculated)
-	OR
-	 - coverage: The times a genome should be covered
+  - relativeAbundance: RA of the file in the final metagenome (0-1).
+     The sum of all must be 1.0 if only isolates 
+     The sum must be < 1 when there is a background (RA is calculated)
+  OR
+  - coverage: The times a genome should be covered
 
  - genomeSize: The size of each genome in basepairs (e.g. 3.7e6)
     if not set or missing values, defaults to value of argument -d
@@ -98,6 +98,6 @@ This is a comma separated CSV file with the following columns
     Leave empty in case of 1 interleaved data file
  - getFromSRA: fill in the SRR (leave readFile/readFile2 blank)
     The file will be downloaded from SRA 
- - Any other columns will be ignored, but put in the meta-data JSON file if generated
+ NOTE: any other columns will be ignored, but kept as meta-data
 
 -- END SEQ2MGS.SH ---
