@@ -17,4 +17,4 @@ seq2mgsDefaultGenomeSize=3.7e6
 seq2mgsMaxResample=10
 seq2mgsMetaData=TRUE
 seq2mgsVerbose=TRUE
-seq2mgsTemp=temp
+seq2mgsTemp=/tmp
