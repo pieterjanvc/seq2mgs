@@ -639,7 +639,7 @@ tryCatch({
       inputFile = inputFile,
       outputFile = outputFile,
       totalReads = sum(raData$readsUsed),
-      estimatedBases = as.integer(sum(raData$readsUsed * raData$readLength)),
+      estimatedBases = round(sum(raData$readsUsed * raData$readLength),0),
       limits = limits,
       fileData = raData %>% select( -readsNeeded, -readsUsed) %>% 
         left_join(
