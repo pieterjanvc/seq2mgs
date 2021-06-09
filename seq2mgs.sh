@@ -85,12 +85,19 @@ elif [ ! -f $inputFile ]; then
 	echo -e "\n\e[91mThe specified input file was not found\e[0m"; exit 1; 
 fi
 
+if [ -z ${forceOverwrite+x} ]; then	
+  forceOverwrite=F
+fi
+
 if [ -z ${outputFile+x} ]; then 
 	echo -e "\n\e[91mNo output file specified.\n Use -o to specify one or type seq2mgs -h for more info\e[0m"; exit 1;
 elif [ ! -d `dirname $outputFile` ]; then	
 	echo -e "\n\e[91mThe directory for the output file does not exist\e[0m"; exit 1;
-elif [ -f $outputFile ] && [ -z ${forceOverwrite+x} ]; then	
+elif [ -f $outputFile ] && [ $forceOverwrite == F ]; then	
 	echo -e "\n\e[91mThe output file already exists.\n Use -f option to force overwrite\e[0m"; exit 1;
+elif [ -f $outputFile ] && [ $forceOverwrite == T ]; then	
+  rm $outputFile
+  rm -f $(echo $outputFile | sed -e "s/.fastq.gz/_metaData.json/g")
 fi
 
 if [ ! -z ${minBases+x} ] && [[ ! "$minBases" =~ ^[0-9\.+-eE]+$ ]]; then 
