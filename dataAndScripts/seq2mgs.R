@@ -465,8 +465,7 @@ tryCatch({
     
     if(T){
       raData = raData %>% 
-        mutate(genomeCorrection = genomeSize / 
-                 genomeSize[genomeSize == min(genomeSize, na.rm = T)][1])
+        mutate(genomeCorrection = genomeSize / min(genomeSize, na.rm = T))
       raData$genomeCorrection[raData$type == "b"] = 1
     } else {
       raData$genomeCorrection = 1
