@@ -39,7 +39,7 @@ updateDBwhenError() {
 while getopts ":hi:o:t:l:u:a:b:d:m:fv:" opt; do
   case $opt in
 	h) echo -e "\n"
-	   awk '/--- seq2mgs.SH ---/,/-- END seq2mgs.SH ---/' $baseFolder/readme.txt 
+	   awk '/--- SEQ2MGS.SH ---/,/-- END SEQ2MGS.SH ---/' $baseFolder/readme.txt 
 	   echo -e "\n"
 	   exit
     ;;	
