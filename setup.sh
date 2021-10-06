@@ -96,7 +96,7 @@ sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	VALUES($runId,'setup.sh',$(date '+%s'),1,'R installed')"
 
 #Check if the correct R packages are installed
-$Rscript $baseFolder/dataAndScripts/setup.R
+Rscript $baseFolder/dataAndScripts/setup.R
 sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.R',$(date '+%s'),2,'R packages installed')"
