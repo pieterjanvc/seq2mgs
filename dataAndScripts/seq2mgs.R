@@ -42,11 +42,6 @@ maxBackBases = min(as.integer(args[[11]]), Inf, na.rm = T)
 defGenomeSize = as.integer(args[[12]])
 oversample = T 
 
-#Grab the location of the reformat script from the settings file
-bbmap = formatPath(system(sprintf(
-  "grep -oP \"bbmap\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
-  baseFolder), intern = T))
-
 #Grab the location of the sraDownloadFolder from the settings file
 sraDownloadFolder = suppressWarnings(
   system(sprintf("grep -oP \"sraDownloadFolder\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt",
@@ -59,10 +54,6 @@ if(!str_detect(tempFolder, "^\\/")){
 if(!str_detect(sraDownloadFolder, "^\\/")){
   sraDownloadFolder = paste0(baseFolder, "/", sraDownloadFolder)
 }
-
-#Grab the location of the fasterq-dump script from the settings file
-fasterq = system(sprintf("grep -oP \"fasterq\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
-                                baseFolder), intern = T)
 
 #Grab the seq2mgsMaxFileN from the settings file
 maxNfiles = as.integer(system(sprintf("grep -oP \"seq2mgsMaxResample\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt", 
@@ -227,18 +218,28 @@ tryCatch({
     files = files %>% left_join(alreadyDownloaded, by = "getFromSRA")
     
     #Look up the SRR for the ones missing
-    files$SRAexists[!is.na(files$getFromSRA) & is.na(files$SRAexists)] = 
-      sapply(files$getFromSRA[!is.na(files$getFromSRA) & is.na(files$SRAexists)], function(x){
-        system(sprintf("/opt/sratoolkit.2.10.8/bin/fastq-dump -X 1 -Z --split-spot %s 2>/dev/null | wc -l",
-                       x),
-               intern = T)
-      }) %>% as.integer() / 4
+    toCheck = !is.na(files$getFromSRA) & is.na(files$SRAexists)
+    sraToolsPresent = system("command -v fastq-dump", ignore.stdout=T) == 0
     
-    #Check if the files exist
-    if(!all(files$SRAexists > 0, na.rm = T)){
-      SRAexists = paste("*** The following files do not exist on SRA:\n    ",
-                        paste(files$getFromSRA[files$SRAexists == 0], collapse = "     \n"))
-    } else {
+    if(sum(toCheck) > 0 & sraToolsPresent){
+      
+      files$SRAexists[toCheck] = 
+        sapply(files$getFromSRA[toCheck], function(x){
+          system(sprintf("fastq-dump -X 1 -Z --split-spot %s 2>/dev/null | wc -l",
+                         x),
+                 intern = T)
+        }) %>% as.integer() / 4
+      
+      #Check if the files exist
+      if(!all(files$SRAexists > 0, na.rm = T)){
+        SRAexists = paste("*** The following files do not exist on SRA:\n    ",
+                          paste(files$getFromSRA[files$SRAexists == 0], collapse = "     \n"))
+      } 
+    } else if(sum(toCheck) > 0 & !sraToolsPresent){
+      SRAexists = "*** The sraToolkit was not found, thus files cannot be downloaded"
+    }
+    
+    if(all(files$SRAexists > 0, na.rm = T)){
       # Add the future file locations to the list
       files = files %>% mutate(
         readFile = as.character(readFile),
@@ -246,8 +247,10 @@ tryCatch({
           is.na(SRAexists) ~ readFile, 
           SRAexists == 1 ~ paste0(sraDownloadFolder, "/", getFromSRA, ".fastq.gz"),
           TRUE ~ paste0(sraDownloadFolder, "/", getFromSRA, "_1.fastq.gz")),
-        readFile2 = ifelse(SRAexists != 2, readFile2,
-                           paste0(sraDownloadFolder, "/", getFromSRA, "_2.fastq.gz"))
+        readFile2 = case_when(
+          is.na(SRAexists) ~ readFile2, 
+          SRAexists == 2 ~ paste0(sraDownloadFolder, "/", getFromSRA, "_2.fastq.gz"),
+          TRUE ~ NA_character_)
       )
       
       getFromSRA = unique(files$getFromSRA[!is.na(files$getFromSRA)])
@@ -565,14 +568,9 @@ tryCatch({
     #Generate a full copy of the file with different ID if file needed more than once
     if(fullFile > 0){
       for(j in 1:fullFile){
-        # system(sprintf(
-        #   "%s/reformat.sh in1=%s in2=%s out=stdout.fastq 2>/dev/null | awk 'NR %% 4 == 1{sub(/@/,\"@%i_\",$0);print;next}\
-        #   NR %% 2 == 1{print \"+\";next}{print}' | %s -c > %s/tempFile%i_full%i.fastq.gz",
-        #   bbmap, toMerge$file1[i], toMerge$file2[i],
-        #   j, zipMethod, tempFolder, i, j), intern = F)
         system(sprintf(
-          "%s/rename.sh in=%s in2=%s out=%s/tempFile%i_full%i.fastq.gz int=t prefix=fileId%i_full_%i_read 2>/dev/null",
-          bbmap, toMerge$file1[i], toMerge$file2[i],
+          "rename.sh in=%s in2=%s out=%s/tempFile%i_full%i.fastq.gz int=t prefix=fileId%i_full_%i_read 2>/dev/null",
+          toMerge$file1[i], toMerge$file2[i],
           tempFolder, i, j, toMerge$id[i], j), intern = F)
       }
     }
@@ -581,15 +579,15 @@ tryCatch({
     partialReads = 0
     if(partialFile != 0){
       partialReads = system(sprintf(
-        "%s/reformat.sh --samplerate=%0.10f in1=%s in2=%s out=%s/partial.fastq.gz 2>&1",
-        bbmap, partialFile, toMerge$file1[i], toMerge$file2[i], tempFolder), 
+        "reformat.sh --samplerate=%0.10f in1=%s in2=%s out=%s/partial.fastq.gz 2>&1",
+        partialFile, toMerge$file1[i], toMerge$file2[i], tempFolder), 
         intern = T)
       partialReads = str_extract(partialReads, "\\d+(?=\\sreads\\s\\()")
       partialReads = as.integer(partialReads[!is.na(partialReads)])
       
       system(sprintf(
-        "%s/rename.sh in=%s/partial.fastq.gz out=%s/tempFile%i_partial.fastq.gz ow=t prefix=fileId%i_partial_read 2>&1",
-        bbmap, tempFolder, tempFolder, i, toMerge$id[i]), intern = T)
+        "rename.sh in=%s/partial.fastq.gz out=%s/tempFile%i_partial.fastq.gz ow=t prefix=fileId%i_partial_read 2>&1",
+        tempFolder, tempFolder, i, toMerge$id[i]), intern = T)
       
       system(sprintf("rm %s/partial.fastq.gz", tempFolder), intern = T)
     }
@@ -617,8 +615,8 @@ tryCatch({
   
   system(paste0("cat ", tempFolder, "/*.fastq.gz > ", outputFile))
   system(sprintf(
-    "%s/shuffle.sh in=%s out=%s overwrite=t 2>&1",
-    bbmap, outputFile, outputFile), intern = T)
+    "shuffle.sh in=%s out=%s overwrite=t 2>&1",
+    outputFile, outputFile), intern = T)
   
   #Write the meta data as JSON (if requested)
   if(metaData){

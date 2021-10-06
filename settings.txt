@@ -4,12 +4,10 @@
 # NOTE: Do NOT quote values unless quotation is part of it
 #  ex.1: var=test 1; NOT var="test 1"
 #  ex.2: var=test "test" test; NOT "test \"test\" test"
+#
+# Make sure Rscript, sqlite3, bbmap/ and sratoolkit/ are in $PATH
 
---- GENERAL DEPENDENCIES
-sqlite3=/opt/sqlite-tools/sqlite3
-rscript=/opt/R/4.0.2/bin/Rscript
-bbmap=/opt/bbmap
-fasterq=/opt/sratoolkit.2.10.8/bin/fasterq-dump
+--- GENERAL SETTINGS
 sraDownloadFolder=SRAdownloads
 
 --- SEQ2MGS.SH

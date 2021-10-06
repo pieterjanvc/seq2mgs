@@ -1,7 +1,6 @@
 #!/bin/bash
 
 baseFolder=$(realpath -- "$(dirname -- "$0")")
-sqlite3=`grep -oP "sqlite3\s*=\s*\K(.*)" $baseFolder/settings.txt`
 
 #Save error to temp file to it can be both displayed to user and put in DB
 touch $baseFolder/dataAndScripts/lastError
@@ -28,7 +27,7 @@ trap 'err_report ${LINENO}' ERR
 
 updateDBwhenError() {
 	#Update the DB
-    $sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+    sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"UPDATE scriptUse
 	SET end = '$(date '+%F %T')', status = 'error',
 	info = '$2'
@@ -147,13 +146,13 @@ else
 fi
 
 #Register the start of the script in the DB
-runId=$($sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+runId=$(sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO scriptUse (scriptName,start,status) \
 	values('seq2mgs.sh','$(date '+%F %T')','running'); \
 	SELECT runId FROM scriptUse WHERE runId = last_insert_rowid()")
 	
 #Save the arguments with which the script was run
-$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO scriptArguments (runId,scriptName,argument,value)
 	VALUES($runId,'seq2mgs.sh','inputFile', '$inputFile'),
 	($runId,'seq2mgs.sh','outputFile', '$outputFile'),
@@ -171,8 +170,7 @@ if [ $verbose == T ]; then
 fi
 
 #Run the R script
-rPath=`grep -oP "rscript\s*=\s*\K(.*)" $baseFolder/settings.txt`
-$rPath $baseFolder/dataAndScripts/seq2mgs.R \
+Rscript $baseFolder/dataAndScripts/seq2mgs.R \
 	$baseFolder $inputFile $outputFile "$minBases" \
 	"$maxBases" $metaData $verbose $tempFolder $runId \
 	"$minBackBases" "$maxBackBases" "$defaultGenomeSize"
@@ -182,7 +180,7 @@ if [ $verbose == T ]; then
 fi
 
 #Update the DB
-$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"UPDATE scriptUse
 	SET end = '$(date '+%F %T')', status = 'finished'
 	WHERE runId = $runId"

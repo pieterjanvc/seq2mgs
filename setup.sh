@@ -27,7 +27,7 @@ trap 'err_report ${LINENO}' ERR
 
 updateDBwhenError() {
 	#Update the DB
-    $sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+    sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"UPDATE scriptUse
 	SET end = '$(date '+%F %T')', status = 'error',
 	info = '$2'
@@ -61,8 +61,7 @@ mkdir -p $baseFolder/temp
 echo "1) Check dependencies..."
 
 #Check if sqlite3 is installed
-sqlite3=`grep -oP "sqlite3\s*=\s*\K(.*)" $baseFolder/settings.txt`
-testTool=`command -v $sqlite3`
+testTool=`command -v sqlite3`
 if [ -z "$testTool" ]; then 
     message="SQLite 3 does not seem to be installed.\n If it is, set the path to 'sqlite3' in the settings file"
 	echo -e "\e[91m$message\n" $baseFolder/settings.txt"\e[0m"
@@ -72,7 +71,7 @@ echo -e " - SQLite 3 is present"
 
 #Check the seq2mgs database and create if needed
 if [ ! -f "$baseFolder/dataAndScripts/seq2mgs.db" ]; then
-	$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" -cmd \
+	sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" -cmd \
 	".read $baseFolder/dataAndScripts/createSeq2mgsDB.sql" ".quit" 
 	echo -e " - No seq2mgs database found, a new database was created"
 else 
@@ -80,72 +79,68 @@ else
 fi
 
 #Register the start of the script in the DB
-runId=$($sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+runId=$(sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO scriptUse (scriptName,start,status) \
 	values('setup.sh','$(date '+%F %T')','running'); \
 	SELECT runId FROM scriptUse WHERE runId = last_insert_rowid()")
 	
 #Check if R is installed
-Rscript=`grep -oP "rscript\s*=\s*\K(.*)" $baseFolder/settings.txt`
-if [ -z `command -v $Rscript` ]; then 
+if [ -z `command -v Rscript` ]; then 
     message="R does not seem to be installed.\n If it is, set the path to 'Rscript' in the settings file"
 	echo -e "\e[91m$message\n" $baseFolder/settings.txt"\e[0m"
 	updateDBwhenError "$runId" "R does not seem to be installed"
 	exit 1;
 fi;
-$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.sh',$(date '+%s'),1,'R installed')"
 
 #Check if the correct R packages are installed
 $Rscript $baseFolder/dataAndScripts/setup.R
-$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.R',$(date '+%s'),2,'R packages installed')"
 echo -e " - R and dependent packages are present"
 
 
 #Check if bbmap is installed or the reformat.sh script can be reached
-testTool=`grep -oP "bbmap\s*=\s*\K(.*)" $baseFolder/settings.txt`
-if [ -z `command -v $testTool/reformat.sh` ]; then 
-	echo -e "\e[91mThe bbmap package does not seem to be installed as a system application\n"\
-	"If you have unzipped the package in a custom folder,\n update the path to the bbmap folder in the settings file\n"\
+if [ -z `command -v reformat.sh` ]; then 
+	echo -e "\e[91mThe bbmap package was not found\n"
 	$baseFolder/settings.txt"\e[0m"
-	updateDBwhenError "$runId" "The bbmap package does not seem to be installed"
+	updateDBwhenError "$runId" "The bbmap package was not found"
 	exit 1;
 elif [ -z `command -v java` ]; then 
-    echo -e "\e[91mThe bbmap package is installed, but the java dependency is not\n"\
+    echo -e "\e[91mThe bbmap package is installed, but the java dependency was not found\n"\
 	"Make sure to install java (version 7+) on your system\n"\
 	$baseFolder/settings.txt"\e[0m"
-	updateDBwhenError "$runId" "The java dependency does not seem to be installed"
+	updateDBwhenError "$runId" "The java dependency was not found"
 	exit 1;
 fi;
-$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.sh',$(date '+%s'),3,'bbmap (reformat.sh) installed')"
-echo -e " - bbmap (reformat.sh) is present"
+echo -e " - bbmap is present"
 
 #Check if pigz is installed else use gzip (slower but same result)
 if [ -z `command -v pigz` ]; then 
 	echo -e " - pigz is not present. gzip will be used instead, but is slower"
-	message="pigz not installed. gzip used instead"
+	message="pigz not found. gzip used instead"
 else
 	message="pigz present"
 fi;
-$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.sh',$(date '+%s'),7,'$message')"
 echo -e " - $message"
 
 #Check if SRAtoolkit (fasterq-dump) is installed
-testTool=`grep -oP "fasterq\s*=\s*\K(.*)" $baseFolder/settings.txt`
-if [ -z `command -v $testTool` ]; then 
-	echo -e " - SRAtoolkit (fasterq-dump) is not present. Only local data can be used as input"
-	message="SRAtoolkit (fasterq-dump) not installed"
+if [ -z `command -v fasterq-dump` ]; then 
+	echo -e " - SRAtoolkit was not found. Only local data can be used as input"
+	message="SRAtoolkit not found"
 else
-	message="SRAtoolkit (fasterq-dump) present"
+	message="SRAtoolkit present"
 fi;
-$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.sh',$(date '+%s'),7,'$message')"
 echo -e " - $message"
@@ -169,7 +164,7 @@ if [ "$runTests" == "true" ]; then
 		-o $baseFolder/dataAndScripts/testData/testOutput.fastq.gz \
 		-v FALSE
 
-	$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+	sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 		"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 		VALUES($runId,'setup.sh',$(date '+%s'),8,'seq2mgs test succesful')"
 	printf "done\n\n"
@@ -178,7 +173,7 @@ if [ "$runTests" == "true" ]; then
 fi
 
 #Finish script
-$sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"UPDATE scriptUse
 	SET end = '$(date '+%F %T')', status = 'finished'
 	WHERE runId = $runId"

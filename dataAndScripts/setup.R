@@ -6,13 +6,12 @@
 if(as.integer(R.version$major) < 4){
   warning(paste0("R version 4.0 or higher is recommended.\n",
       "Currently ", R.version$version.string, " is the default.\n",
-      " If your system has multiple R versions and the default < 4.0,\n",
-      " set the path to the 'Rscript' in version 4+ in the settings file.\n",
+      " If your system has multiple R versions change the default to 4.0+.\n",
       " In case of unexpected errors, update R to the latest version\n"))
 }
 
 #Check R packages
-packages = c("tidyverse", "RSQLite")
+packages = c("tidyverse", "RSQLite", "httr", "jsonlite")
 installed = packages %in% installed.packages()[,1]
 
 if(!all(installed)){
