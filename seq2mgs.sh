@@ -70,6 +70,13 @@ while getopts ":hi:o:t:l:u:a:b:d:m:fv:" opt; do
   esac  
 done
 
+if [ $OPTIND -eq 1 ]; then 
+	echo -e "\n"
+	awk '/--- SEQ2MGS.SH ---/,/-- END SEQ2MGS.SH ---/' $baseFolder/readme.txt
+	echo -e "\n"
+	exit
+fi
+
 exec 2>$baseFolder/dataAndScripts/lastError
 
 #Check if the database is present (and thus setup script has been run at least once)
