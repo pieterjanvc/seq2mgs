@@ -56,6 +56,10 @@ mkdir -p $baseFolder/SRAdownloads
 mkdir -p $baseFolder/SRAdownloads/temp
 mkdir -p $baseFolder/temp
 
+pathMessage="\nPlease make sure to install the missing dependency if not done so\n"\
+" AND make sure it is in the "'$PATH'" variable:\n"\
+'  export PATH=/path/to/program/folder/:$PATH'
+
 # STEP 1 - Check dependencies
 #----------------------------
 echo "1) Check dependencies..."
@@ -63,8 +67,8 @@ echo "1) Check dependencies..."
 #Check if sqlite3 is installed
 testTool=`command -v sqlite3`
 if [ -z "$testTool" ]; then 
-    message="SQLite 3 does not seem to be installed.\n If it is, set the path to 'sqlite3' in the settings file"
-	echo -e "\e[91m$message\n" $baseFolder/settings.txt"\e[0m"
+	echo -e "\e[91msqlite3 was not found\e[0m"
+	echo -e pathMessage
 	exit 1;
 fi;
 echo -e " - SQLite 3 is present"
@@ -86,9 +90,9 @@ runId=$(sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	
 #Check if R is installed
 if [ -z `command -v Rscript` ]; then 
-    message="R does not seem to be installed.\n If it is, set the path to 'Rscript' in the settings file"
-	echo -e "\e[91m$message\n" $baseFolder/settings.txt"\e[0m"
-	updateDBwhenError "$runId" "R does not seem to be installed"
+    echo -e "\e[91mRscript is not found\e[0m"
+	echo -e pathMessage
+	updateDBwhenError "$runId" "R is not found"
 	exit 1;
 fi;
 sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
@@ -105,14 +109,14 @@ echo -e " - R and dependent packages are present"
 
 #Check if bbmap is installed or the reformat.sh script can be reached
 if [ -z `command -v reformat.sh` ]; then 
-	echo -e "\e[91mThe bbmap package was not found\n"
-	$baseFolder/settings.txt"\e[0m"
+	echo -e "\e[91mThe bbmap package was not found\e[0m"
+	echo -e pathMessage
 	updateDBwhenError "$runId" "The bbmap package was not found"
 	exit 1;
 elif [ -z `command -v java` ]; then 
     echo -e "\e[91mThe bbmap package is installed, but the java dependency was not found\n"\
-	"Make sure to install java (version 7+) on your system\n"\
-	$baseFolder/settings.txt"\e[0m"
+	"Make sure to install java (version 7+) on your system\e[0m"
+	echo -e pathMessage
 	updateDBwhenError "$runId" "The java dependency was not found"
 	exit 1;
 fi;
@@ -135,7 +139,7 @@ echo -e " - $message"
 
 #Check if SRAtoolkit (fasterq-dump) is installed
 if [ -z `command -v fasterq-dump` ]; then 
-	echo -e " - SRAtoolkit was not found. Only local data can be used as input"
+	echo -e " - SRAtoolkit was NOT found. Only local data can be used as input"
 	message="SRAtoolkit not found"
 else
 	message="SRAtoolkit present"
