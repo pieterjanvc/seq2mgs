@@ -49,6 +49,13 @@ while getopts ":ht" opt; do
   esac  
 done
 
+if [ $OPTIND -eq 1 ]; then 
+	echo -e "\n"
+	awk '/--- SETUP.SH ---/,/-- END SETUP.SH ---/' $baseFolder/readme.txt
+	echo -e "\n"
+	exit
+fi
+
 echo -e `date "+%T"`"\e[32m - Start the setup check...\e[0m\n"
 
 #Create folders if needed
