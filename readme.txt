@@ -1,7 +1,7 @@
 ########## SEQ2MGS ##########
 #############################
    Developed by PJ Van Camp
-     vancampn@mail.uc.edu
+github.com/pieterjanvc/seq2mgs
 
 --- SETUP.SH ---
 Run the setup.sh script to verify all dependencies and to test the pipeline.
@@ -13,20 +13,20 @@ Arguments [h|t]
 
 The following software needs to be installed:
 - SQLite3 
-  * Precompiled 32-bit version: https://www.sqlite.org/download.html
-  * Precompiled 64-bit version: https://github.com/boramalper/sqlite3-x64/releases
+  * Precompiled 32-bit: https://www.sqlite.org/download.html
+  * Precompiled 64-bit: https://github.com/boramalper/sqlite3-x64/releases
 - R version 4.0+
   * Packages: RSQLite, tidyverse (dplyr 1.0+), jsonlite, httr
   * Precompiled versions: https://www.r-project.org/ 
     OR: https://docs.rstudio.com/resources/install-r/
 - bbmap
-  * https://jgi.doe.gov/data-and-tools/bbtools/bb-tools-user-guide/installation-guide/
+  * jgi.doe.gov/data-and-tools/bbtools/bb-tools-user-guide/installation-guide/
 - sratoolkit
   * https://github.com/ncbi/sra-tools
-  * Make sure to configure the tool before using it!
+  * !! Make sure to configure the tool before using it!!
     https://github.com/ncbi/sra-tools/wiki/03.-Quick-Toolkit-Configuration
-  NOTE: if you run this under a different user or root, you need to configure again
-  * The default location for saving the data is SRAdownloads/ in the SEQ2MGS folder
+    This needs to be done for every user who runs it (including root)
+  * The default download folder is SRAdownloads/ in the SEQ2MGS folder
     This can be changed in the settings.txt file
 
 Optional software
@@ -34,7 +34,7 @@ Optional software
   * If installed, faster zipping with multi-cores
    
 IMPORTANT: Make sure all dependencies are in the $PATH variable
-	i.e. Rscript, sqlite3, bbmap/ and sratoolkit/
+	HowTo: https://opensource.com/article/17/6/set-path-linux
 
 -- END SETUP.SH ---
 
@@ -47,7 +47,7 @@ Arguments [h|i|o|l|u|a|b|d|m|t|f|v]
  
 # Required
  -i The input file (.csv) containing all samples to be mixed (details see below)
- -o The location to save the output file. Filename should end with a fastq.gz extension
+ -o The location to save the output file. Filename should end with fastq.gz
 
 # Optional
  -d (optional) Change default value of the genomeSize column in the input file. 

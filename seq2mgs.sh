@@ -79,9 +79,10 @@ fi
 
 exec 2>$baseFolder/dataAndScripts/lastError
 
-#Check if the database is present (and thus setup script has been run at least once)
-if [ ! -f "$baseFolder/dataAndScripts/seq2mgs.db" ]; then 
-	echo -e "\n\e[91mThe SEQ2MGS setup does not seem to be complete.\n Please run the setup.sh script to verify the installation\e[0m"; exit 1; 
+#Quick check whether the tool is setup correctly
+if [ -z `command -v reformat.sh` ] || [ -z `command -v sqlite3` ] ||\
+   [ -z `command -v Rscript` ] || [ ! -f "$baseFolder/dataAndScripts/seq2mgs.db" ]; then
+	echo -e "\e[91m\nThere are issues with the setup of the tool\n please run the setup.sh script for details\e[0m"
 fi
 
 #Check all the input arguments
