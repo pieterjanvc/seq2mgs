@@ -1,14 +1,9 @@
-dataAndScripts/testData
-dataAndScripts/*test*
-temp/*
+temp/
 *.Rproj
 .Rproj.user
 *.RData
 *.Rhistory
-**.fastq.gz
-**.fastq
-**.fasta
-*test*
+SRAdownloads/
 *backup*
 **.db
 dataAndScripts/lastError

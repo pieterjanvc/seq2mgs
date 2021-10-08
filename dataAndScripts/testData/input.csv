@@ -1,0 +1,3 @@
+type,sampleName,relativeAbundance,readFile,readFile2
+I,testIsolate,0.1,~/dataAndScripts/testData/isolate_1.fastq.gz,~/dataAndScripts/testData/isolate_2.fastq.gz
+B,testBackground,,~/dataAndScripts/testData/background.fastq.gz,
