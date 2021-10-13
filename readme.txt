@@ -40,7 +40,8 @@ IMPORTANT: Make sure all dependencies are in the $PATH variable
 
 
 --- SEQ2MGS.SH ---
-Mix multiple isolate fastq files together to create artificial metagenomes 
+Mix multiple isolate fastq files together to create artificial metagenomes.
+See the tutorial.md file for examples on setup and running the pipeline.
 
 Arguments [h|i|o|l|u|a|b|d|m|t|f|v]
  -h Read the help documentation
