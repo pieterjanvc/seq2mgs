@@ -335,8 +335,8 @@ tryCatch({
       } else {
         cat("          ",SRR, ": downloading ... ")
         system(sprintf(
-          "%s %s -O %s -t %s/temp 2>/dev/null", 
-          fasterq, SRR, sraDownloadFolder, sraDownloadFolder), intern = F)
+          "fasterq-dump %s -O %s -t %s/temp 2>/dev/null", 
+          SRR, sraDownloadFolder, sraDownloadFolder), intern = F)
         
         cat("zipping ... ")
         if(nrow(files %>% filter(getFromSRA == SRR)) == 1){
