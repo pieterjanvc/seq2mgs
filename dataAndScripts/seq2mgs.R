@@ -289,6 +289,13 @@ tryCatch({
                                     collapse = "\n")), 
                        "")
   
+  #Check if every input has a file / SRA assigned
+  pickFile = ""
+  if(any(is.na(files$getFromSRA) & is.na(files$readFile) & is.na(files$readFile2)) |
+     any(!is.na(files$getFromSRA) & (!is.na(files$readFile) | !is.na(files$readFile2)))){
+    pickFile = "*** Each file needs either a path to a local file OR an SRA accession\n"
+  }
+  
   #Get all the missing files
   missing = c(files %>% filter(is.na(modDate) & is.na(getFromSRA)) %>% 
                 pull(filePath) %>% unique())
@@ -307,7 +314,8 @@ tryCatch({
   
   
   #Paste everything together
-  errorMessage = c(sumRA, isoVsBack, uniqueFiles, missing, incorrectType, SRAexists)
+  errorMessage = c(sumRA, isoVsBack, uniqueFiles, pickFile, missing, 
+                   incorrectType, SRAexists)
   errorMessage = paste(errorMessage[errorMessage != ""], collapse = "\n\n")
   
   
