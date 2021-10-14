@@ -132,7 +132,7 @@ tryCatch({
   }
   
   if(! "sampleName" %in% allCols){
-    files$sampleName = NA
+    files$sampleName = NA_character_
   }
   
   #Type combo check
