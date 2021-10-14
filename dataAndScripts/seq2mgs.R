@@ -244,7 +244,7 @@ tryCatch({
         SRAexists = paste("*** The following files do not exist on SRA:\n    ",
                           paste(files$getFromSRA[files$SRAexists == 0 &
                                                    !is.na(files$SRAexists)], 
-                                collapse = "     \n"))
+                                collapse = "\n     "))
       } 
     } else if(sum(toCheck) > 0 & !sraToolsPresent){
       SRAexists = "*** The sraToolkit was not found and the requested files cannot be downloaded"
