@@ -46,6 +46,7 @@ oversample = T
 sraDownloadFolder = suppressWarnings(
   system(sprintf("grep -oP \"sraDownloadFolder\\s*=\\s*\\K([^\\s]+)\" %s/settings.txt",
                  baseFolder), intern = T))
+sraDownloadFolder = ifelse(length(sraDownloadFolder) == 0, "", sraDownloadFolder)
 
 #Check if the temp / sraDownloadFolder are the default ones
 if(!str_detect(tempFolder, "^\\/")){
