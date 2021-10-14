@@ -132,7 +132,7 @@ tryCatch({
   }
   
   if(! "sampleName" %in% allCols){
-    files$sampleName = ""
+    files$sampleName = NA
   }
   
   #Type combo check
@@ -265,8 +265,7 @@ tryCatch({
   
 
   files = files %>% 
-    mutate(id = 1:n(), 
-           sampleName = ifelse(sampleName == "", paste0("sample", 1:n()), sampleName)) %>% 
+    mutate(id = 1:n()) %>% 
     pivot_longer(c(readFile, readFile2), values_to = "filePath") %>% 
     select(id, type, any_of(c("relativeAbundance", "coverage", "genomeSize")), 
            getFromSRA, filePath, sampleName) %>% 
