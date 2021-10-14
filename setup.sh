@@ -68,7 +68,7 @@ echo "1) Check dependencies..."
 testTool=`command -v sqlite3`
 if [ -z "$testTool" ]; then 
 	echo -e "\e[91msqlite3 was not found\e[0m"
-	echo -e pathMessage
+	echo -e $pathMessage
 	exit 1;
 fi;
 echo -e " - SQLite 3 is present"
@@ -91,7 +91,7 @@ runId=$(sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 #Check if R is installed
 if [ -z `command -v Rscript` ]; then 
     echo -e "\e[91mRscript is not found\e[0m"
-	echo -e pathMessage
+	echo -e $pathMessage
 	updateDBwhenError "$runId" "R is not found"
 	exit 1;
 fi;
@@ -110,13 +110,13 @@ echo -e " - R and dependent packages are present"
 #Check if bbmap is installed or the reformat.sh script can be reached
 if [ -z `command -v reformat.sh` ]; then 
 	echo -e "\e[91mThe bbmap package was not found\e[0m"
-	echo -e pathMessage
+	echo -e $pathMessage
 	updateDBwhenError "$runId" "The bbmap package was not found"
 	exit 1;
 elif [ -z `command -v java` ]; then 
     echo -e "\e[91mThe bbmap package is installed, but the java dependency was not found\n"\
 	"Make sure to install java (version 7+) on your system\e[0m"
-	echo -e pathMessage
+	echo -e $pathMessage
 	updateDBwhenError "$runId" "The java dependency was not found"
 	exit 1;
 fi;
