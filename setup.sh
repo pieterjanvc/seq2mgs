@@ -139,8 +139,7 @@ echo -e " - $message"
 
 #Check if SRAtoolkit (fasterq-dump) is installed
 if [ -z `command -v fasterq-dump` ]; then 
-	echo -e " - SRAtoolkit was NOT found. Only local data can be used as input"
-	message="SRAtoolkit not found"
+	message="SRAtoolkit was NOT found. Only local data can be used as input"
 else
 	message="SRAtoolkit present"
 fi;

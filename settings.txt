@@ -8,7 +8,7 @@
 # Make sure Rscript, sqlite3, bbmap/ and sratoolkit/ are in $PATH
 
 --- GENERAL SETTINGS
-sraDownloadFolder=SRAdownloads
+sraDownloadFolder=
 
 --- SEQ2MGS.SH
 seq2mgsDefaultGenomeSize=3.7e6

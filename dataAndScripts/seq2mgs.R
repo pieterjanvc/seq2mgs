@@ -51,8 +51,9 @@ sraDownloadFolder = suppressWarnings(
 if(!str_detect(tempFolder, "^\\/")){
   tempFolder = paste0(baseFolder, "/", tempFolder)
 }
-if(!str_detect(sraDownloadFolder, "^\\/")){
-  sraDownloadFolder = paste0(baseFolder, "/", sraDownloadFolder)
+if(!dir.exists(sraDownloadFolder)){
+  dir.create(paste0(baseFolder, "/", "SRAdownloads"), showWarnings = F)
+  sraDownloadFolder = paste0(baseFolder, "/", "SRAdownloads")
 }
 
 #Grab the seq2mgsMaxFileN from the settings file
@@ -233,10 +234,12 @@ tryCatch({
       #Check if the files exist
       if(!all(files$SRAexists > 0, na.rm = T)){
         SRAexists = paste("*** The following files do not exist on SRA:\n    ",
-                          paste(files$getFromSRA[files$SRAexists == 0], collapse = "     \n"))
+                          paste(files$getFromSRA[files$SRAexists == 0 &
+                                                   !is.na(files$SRAexists)], 
+                                collapse = "     \n"))
       } 
     } else if(sum(toCheck) > 0 & !sraToolsPresent){
-      SRAexists = "*** The sraToolkit was not found, thus files cannot be downloaded"
+      SRAexists = "*** The sraToolkit was not found and the requested files cannot be downloaded"
     }
     
     if(all(files$SRAexists > 0, na.rm = T)){
