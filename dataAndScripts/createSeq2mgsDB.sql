@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS "scriptArguments" (
 );
 -- Table that keeps general logs
 CREATE TABLE IF NOT EXISTS "logs" (
-    "logId"	integer primary key,
+  "logId"	integer primary key,
 	"runId"	integer NOT NULL,
 	"tool" text NOT NULL,
 	"timeStamp" integer NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS "logs" (
 -- Table lising all sequencing data info
 CREATE TABLE IF NOT EXISTS "seqData" (
 	"seqId"	integer primary key,
-	"sampleName" text NOT NULL,
+	"sampleName" text,
 	"readCount" integer NOT NULL,
 	"readLength" numeric NOT NULL,
 	"sampleType" text,
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS "seqFiles" (
 	FOREIGN KEY("seqId") REFERENCES "seqData"("seqId") ON UPDATE CASCADE ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS "mixDetails" (
-    "runId" integer NOT NULL,
+  "runId" integer NOT NULL,
 	"seqId" integer NOT NULL,
 	"type" text NOT NULL,
 	"relativeAbundance" real,
