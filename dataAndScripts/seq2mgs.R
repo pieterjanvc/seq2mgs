@@ -92,7 +92,7 @@ tryCatch({
     cat(format(Sys.time(), "%H:%M:%S"),"- Check the input file for errors ... ")
   }
   
-  #Read the input file and remove unwanted whitespace
+  #Read the input file and remove unwanted white space
   tryCatch({
     files = read_csv(inputFile, col_names = T, col_types = cols()) %>%  
       mutate(across(where(is.character), function(x) str_trim(x)))
@@ -141,7 +141,9 @@ tryCatch({
   if(!all(str_detect(files$type, "^i|^I|^b|^B"))){
     isoVsBack = "*** Incorrect sample types. Either i, I, isolate or b, B, background"
   } else{
+    #Convert types to i and b
     files$type = ifelse(str_detect(files$type, "^i|^I"), "i", "b")
+    
     totalI = sum(files$type == "i")
     totalB = sum(files$type == "b")
     isoVsBack = ""
@@ -163,8 +165,10 @@ tryCatch({
         "  NOTE: The set limits do not apply here, use the a|b arguments instead\n")
     }
     
-    if(is.na(sum(files$coverage[files$type != "b"]))){
-      sumRA = "*** The coverage of each isolate must be a numeric value >= 0"
+    if(!class(files$coverage) %in% c("numeric", "integer")){
+      sumRA = "*** The coverage needs to be a numeric value"
+    } else if(any(files$coverage[files$type != "b"] <= 0)){
+      sumRA = "*** The coverage of each isolate must be a numeric value > 0"
     }
     
     files = files %>% 
@@ -172,13 +176,32 @@ tryCatch({
     
   } else {
     
-    #Calculate the background RA if present
-    files = files %>% 
-      mutate(relativeAbundance = ifelse(str_detect(type, "i|I"), relativeAbundance, 
-                                        1 - sum(relativeAbundance[str_detect(type, "i|I")])))
-    #Check that sum of RA = 1
-    sumRA = ifelse(sum(files$relativeAbundance) != 1, 
-                   "*** The sum of relative abundances is not 1", "")
+    if(!class(files$relativeAbundance) %in% c("numeric", "integer")){
+      sumRA = "*** The relative abundance needs to be a numeric value"
+    } else {
+      
+      #Calculate the background RA if present
+      files = files %>% 
+        mutate(relativeAbundance = ifelse(type == "i", relativeAbundance, 
+                                          1 - sum(relativeAbundance[type == "i"])))
+      #Check that sum of RA = 1 
+      sumRA = ifelse(sum(files$relativeAbundance) != 1, 
+                     "*** The sum of relative abundances is not 1", "")
+      
+      #RA Checks when only isolates
+      sumRA = case_when(
+        sum(files$relativeAbundance) != 1 ~ "*** The sum of relative abundances is not 1",
+        any(files$relativeAbundance <= 0) ~ "*** Relative abundance must be a positive number 0 > RA > 1",
+        TRUE ~ ""
+      )
+      
+      #RA Checks when background
+      sumRA = ifelse(
+        length(files$relativeAbundance[files$type == "b"]) > 0 &
+          sum(files$relativeAbundance[files$type == "b"], na.rm = T) <= 0,
+        "*** The sum of isolate relative abundance must be < 1 when mixed into a background", 
+        sumRA)
+    }
     
     if(minBackBases > 0 | maxBackBases < Inf){
       finalMessage = paste(
@@ -188,15 +211,25 @@ tryCatch({
   }
  
   #Check the genome size
+  gSize = ""
   if("genomeSize" %in% allCols){
-    files = files %>% 
-      mutate(
-        genomeSize = as.integer(genomeSize),
-        genomeSize = case_when(
-          type == "b" ~ NA_integer_,
-          is.na(genomeSize) ~ defGenomeSize,
-          TRUE ~ genomeSize)
+    
+    if(!class(files$genomeSize) %in% c("numeric", "integer")){
+      gSize = "*** The genome size needs to be a numeric value"
+    } else {
+      files = files %>% 
+        mutate(
+          genomeSize = as.integer(genomeSize),
+          genomeSize = case_when(
+            type == "b" ~ NA_integer_,
+            is.na(genomeSize) ~ defGenomeSize,
+            TRUE ~ genomeSize)
         )
+      
+      gSize = ifelse(any(files$genomeSize <= 0, na.rm = T), 
+                     "*** The genome size needs to be a positive integer", gSize)
+    }
+    
   } else {
     files$genomeSize = as.integer(ifelse(files$type == "b", NA, defGenomeSize))
     finalMessage = paste(
@@ -314,7 +347,7 @@ tryCatch({
   
   
   #Paste everything together
-  errorMessage = c(sumRA, isoVsBack, uniqueFiles, pickFile, missing, 
+  errorMessage = c(sumRA, isoVsBack, uniqueFiles, pickFile, missing, gSize, 
                    incorrectType, SRAexists)
   errorMessage = paste(errorMessage[errorMessage != ""], collapse = "\n\n")
   
