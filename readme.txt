@@ -1,7 +1,17 @@
-########## SEQ2MGS ##########
-#############################
-   Developed by PJ Van Camp
-github.com/pieterjanvc/seq2mgs
+
+     ------------------  Developed by PJ Van Camp  ------------------------
+
+           ||||   ||||||   |||||   |||||   ||   ||  ||||    ||||  
+          ||  ||  ||      ||  ||  |||  ||  ||  ||| ||  ||  ||  || 
+          |||     ||      ||  ||       ||  ||||||| ||      |||    
+            ||    |||||   ||  ||      ||   || | || ||        ||   
+             ||   ||      ||  ||    ||     || | || || |||     ||  
+              ||  ||      ||  ||   ||      ||   || ||  ||      || 
+          |||||   ||||||   |||||  ||||||   ||   || ||||||  ||||| 
+                             ||                                   
+                              ||                                  
+     ----------    github.com/pieterjanvc/seq2mgs/releases    -------------
+   
 
 --- SETUP.SH ---
 Run the setup.sh script to verify all dependencies and to test the pipeline.
@@ -40,8 +50,10 @@ IMPORTANT: Make sure all dependencies are in the $PATH variable
 
 
 --- SEQ2MGS.SH ---
-Mix multiple isolate fastq files together to create artificial metagenomes.
+Mix multiple sequencing fastq.gz files together to create artificial metagenomes
+
 See the tutorial.md file for examples on setup and running the pipeline.
+https://github.com/pieterjanvc/seq2mgs/blob/master/tutorial.md
 
 Arguments [h|i|o|l|u|a|b|d|m|t|f|v]
  -h Read the help documentation
