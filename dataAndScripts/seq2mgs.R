@@ -230,12 +230,14 @@ tryCatch({
                      "*** The genome size needs to be a positive integer", gSize)
     }
     
-  } else {
+  } 
+  
+  if(all(c("genomeSize", "coverage") %in% allCols)){
     files$genomeSize = as.integer(ifelse(files$type == "b", NA, defGenomeSize))
     finalMessage = paste(
       finalMessage, 
       "  NOTE: the default genome size estimation of ", round(defGenomeSize / 1000000, 3), 
-      "Mbp\n   was used to calculate the relative abundance or coverage\n")
+      "Mbp\n   was used to calculate the coverage\n")
   }
   
   #Check if every input has a file / SRA assigned
@@ -457,7 +459,7 @@ tryCatch({
       
       #Add the average read count based on the first 10000 reads
       avgLength = sapply(readLines(myFile$filePath[1], 40000)[seq(2, 40000, 4)],
-             nchar, USE.NAMES = F) %>% mean(na.rm = T)
+             nchar, USE.NAMES = F) %>% mean(na.rm = T) %>% round()
       files[files$id == myId, "readLength"] = avgLength
       
       if(verbose){
@@ -492,90 +494,61 @@ tryCatch({
     raData = raData %>% mutate(
       coverage = ifelse(type == "b", NA, coverage),
       readsNeeded = genomeSize * coverage / readLength,
-      readsNeeded = ifelse(type == "b", readCount - sum(readsNeeded, na.rm = T), readsNeeded)
     )
     
-    #Add or remove background reads based on limits
+    #Add or remove background reads based on file size / limits
     if(any(raData$type == "b")){
-      backBases = raData$readsNeeded[raData$type == "b"] * raData$readLength[raData$type == "b"]
+      
+      backBases = raData$readCount[raData$type == "b"] * 
+        raData$readLength[raData$type == "b"] - 
+        sum(raData$readsNeeded[raData$type != "b"] * 
+              raData$readLength[raData$type != "b"])
+      
       backBases = case_when(
         backBases < minBackBases ~ minBackBases,
         backBases > maxBackBases ~ maxBackBases,
         TRUE ~ backBases
       )
-      raData$readsNeeded[raData$type == "b"] = backBases /  raData$readLength[raData$type == "b"]
+      
+      raData$readsNeeded[raData$type == "b"] = backBases /  
+        raData$readLength[raData$type == "b"]
     }
     
     raData = raData %>% mutate(fileNeeded = readsNeeded / readCount)
     
-  } else if(any(raData$type == "b")){ ### RA WITH BACKGROUND
-    
-    if(T){
-      raData = raData %>% 
-        mutate(genomeCorrection = genomeSize / min(genomeSize, na.rm = T))
-      raData$genomeCorrection[raData$type == "b"] = 1
+  } else if("relativeAbundance" %in% colnames(raData)){ ### SEQ RA CALCULATIONS 
+
+    #Calculate the total bases in the output
+    if(any(raData$type == "b")){ 
+      totalBases = raData$readCount[raData$type == "b"] * 
+        raData$readLength[raData$type == "b"]
     } else {
-      raData$genomeCorrection = 1
+      totalBases = min(raData$readCount[raData$type != "b"] * 
+                         raData$readLength[raData$type != "b"] / 
+                         raData$relativeAbundance[raData$type != "b"])
     }
     
-    sumBases = raData %>% filter(type == "b") %>% 
-      mutate(val = readLength * readCount) %>% pull(val)
+    #Adjust if any limits set
     totalBases = case_when(
-      sumBases < minBases ~ minBases,
-      sumBases > maxBases ~ maxBases,
-      TRUE ~ sumBases
+      totalBases < minBases ~ minBases,
+      totalBases > maxBases ~ maxBases,
+      TRUE ~ totalBases
     )
     
-    #Get the final read counts
+    #Calculate the reads needed to reach the RA
     raData = raData %>% 
       mutate(
-        readsNeeded = as.integer(totalBases * relativeAbundance * genomeCorrection/ readLength),
+        readsNeeded = {{totalBases}} * relativeAbundance / readLength,
         fileNeeded = readsNeeded / readCount
       )
 
-  } else { ### RA WITHOUT BACKGROUND
-    
-    #Correct for genome size (larger needs more reads for same RA)
-    if(T){
-      raData$genomeCorrection = 1 / (raData$genomeSize / min(raData$genomeSize))
-    } else {
-      raData$genomeCorrection = 1
-    }
-    
-    #Find the file with the fewest bases available for the RA
-    readCorrection = raData %>% mutate(
-      val = readCount * readLength * relativeAbundance / genomeCorrection
-    ) %>% filter(val == max(val)) %>% slice(1) %>% 
-      mutate(val = readCount * readLength * genomeCorrection / relativeAbundance) %>% 
-      pull(val)
-    
-    #Adjust the other file's bases needed + correct for genome
-    raData = raData %>% mutate(
-      readsNeeded = readCorrection * relativeAbundance / (readLength * genomeCorrection)
-    )
-    
-    #Adjust the read counts based on min - max if set
-    sumBases = sum(raData$readsNeeded * raData$readLength)
-    totalBases = case_when(
-      sumBases < minBases ~ minBases,
-      sumBases > maxBases ~ maxBases,
-      TRUE ~ sumBases
-    )
-    
-    #Get the final read counts
-    raData$readsNeeded = raData$readsNeeded * totalBases / sumBases
-    raData$fileNeeded = raData$readsNeeded / raData$readCount
-    raData$readsNeeded = as.integer(raData$readsNeeded)
-
-  }
+  } 
   
   if(verbose){
     cat("done\n")
   }
   newLogs = rbind(newLogs, list(as.integer(Sys.time()), 6, 
                                 "Number of reads needed from each file calculated"))
-  
-  raData = raData %>% select(-any_of("genomeCorrection")) 
   
   #Check if the file times limit is not crossed
   check = raData$id[raData$fileNeeded > maxNfiles]
@@ -623,7 +596,7 @@ tryCatch({
     partialReads = 0
     if(partialFile != 0){
       partialReads = system(sprintf(
-        "reformat.sh --samplerate=%0.10f in1=%s in2=%s out=%s/partial.fastq.gz 2>&1",
+        "reformat.sh --samplerate=%0.10f in1=%s in2=%s out=%s/partial.fastq.gz overwrite=true 2>&1",
         partialFile, toMerge$file1[i], toMerge$file2[i], tempFolder), 
         intern = T)
       partialReads = str_extract(partialReads, "\\d+(?=\\sreads\\s\\()")

@@ -98,9 +98,10 @@ This is a comma separated CSV file with the following columns
    * Minimum of 2 I files if no B file
    * Max 1 B file with 1 or more I files
  - sampleName (optional): custom name for the different input files
- - genomeSize (optoinal): The size of each genome in bp (e.g. 3.7e6)
-    if not set or missing values, defaults to value of argument -d.
-	Ths parameter is ignored for background files (B) and can be blank
+ - genomeSize (optional): The size of each genome in bp (e.g. 3.7e6) needed to 
+ calculate correct genome coverage. If not set or missing values, defaults to
+ value of argument -d. The value is left blank for background files (B) or 
+ when working with relative abundance (column not needed)
 	
  DEPENDING ON PREFERENCE EITHER
   - relativeAbundance: RA of the file in the final metagenome (0-1).
@@ -123,14 +124,17 @@ This is a comma separated CSV file with the following columns
 
 EXAMPLE CSV FILE 
 ```
-type,sampleName,genomeSize,relativeAbundance,readFile,readFile2,getFromSRA
-I,isolate_1,4.1e6,0.1,~/isolate1_1.fastq.gz,~/isolate1_2.fastq.gz,
-I,isolate_2,,0.3,,,SRR3222075
+type,sampleName,relativeAbundance,readFile,readFile2,getFromSRA
+I,isolate_1,0.1,~/isolate1_1.fastq.gz,~/isolate1_2.fastq.gz,
+I,isolate_2,0.3,,,SRR3222075
 B,background,,,~/metagenome.fastq.gz,,
 ```
 
-isolate_1: genome size ~4.1e6, RA 10%, 2 local input files
-isolate_2: Grab file from SRA, genome size to default, RA 30%
-background: genome size and RA not required, 1 local input file
+isolate_1: RA 10%, 2 local input files
+isolate_2: Grab file from SRA, RA 30%
+background: RA not required, 1 local input file
+
+More examples  can be found in the tutorial.md file or at
+https://github.com/pieterjanvc/seq2mgs/blob/master/tutorial.md
 
 -- END SEQ2MGS.SH ---

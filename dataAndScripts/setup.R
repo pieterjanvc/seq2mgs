@@ -22,3 +22,16 @@ if(!all(installed)){
 if(!stringr::str_detect(as.character(packageVersion("dplyr")), "^1")){
   stop("The dplyr package needs to be version 1.0+")
 }
+
+#Check dependencies ($PATH in R can be different)
+for(dep in c("reformat.sh", "fasterq-dump")){
+  if(system(sprintf("if [ -z `command -v %s` ]; then echo ERROR; else echo OK; fi",
+                    dep), 
+            intern = T) == "ERROR"){
+    stop(paste(ifelse(dep == "reformat.sh", "The BBmap package", "The SRAtoolkit"), 
+               "was not detected in the $PATH variable within R.\n",
+               " make sure the R environment $PATH is setup correctly\n"))
+  }
+}
+
+

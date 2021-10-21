@@ -88,25 +88,6 @@ runId=$(sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	values('setup.sh','$(date '+%F %T')','running'); \
 	SELECT runId FROM scriptUse WHERE runId = last_insert_rowid()")
 	
-#Check if R is installed
-if [ -z `command -v Rscript` ]; then 
-    echo -e "\e[91mRscript is not found\e[0m"
-	echo -e $pathMessage
-	updateDBwhenError "$runId" "R is not found"
-	exit 1;
-fi;
-sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
-	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
-	VALUES($runId,'setup.sh',$(date '+%s'),1,'R installed')"
-
-#Check if the correct R packages are installed
-Rscript $baseFolder/dataAndScripts/setup.R
-sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
-	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
-	VALUES($runId,'setup.R',$(date '+%s'),2,'R packages installed')"
-echo -e " - R and dependent packages are present"
-
-
 #Check if bbmap is installed or the reformat.sh script can be reached
 if [ -z `command -v reformat.sh` ]; then 
 	echo -e "\e[91mThe bbmap package was not found\e[0m"
@@ -130,7 +111,7 @@ if [ -z `command -v pigz` ]; then
 	echo -e " - pigz is not present. gzip will be used instead, but is slower"
 	message="pigz not found. gzip used instead"
 else
-	message="pigz present"
+	message="pigz is present"
 fi;
 sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
@@ -141,12 +122,30 @@ echo -e " - $message"
 if [ -z `command -v fasterq-dump` ]; then 
 	message="SRAtoolkit was NOT found. Only local data can be used as input"
 else
-	message="SRAtoolkit present"
+	message="SRAtoolkit is present"
 fi;
 sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
 	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
 	VALUES($runId,'setup.sh',$(date '+%s'),7,'$message')"
 echo -e " - $message"
+
+#Check if R is installed
+if [ -z `command -v Rscript` ]; then 
+    echo -e "\e[91mRscript is not found\e[0m"
+	echo -e $pathMessage
+	updateDBwhenError "$runId" "R is not found"
+	exit 1;
+fi;
+sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
+	VALUES($runId,'setup.sh',$(date '+%s'),1,'R installed')"
+
+#Check if the correct R packages are installed
+Rscript $baseFolder/dataAndScripts/setup.R
+sqlite3 "$baseFolder/dataAndScripts/seq2mgs.db" \
+	"INSERT INTO logs (runId,tool,timeStamp,actionId,actionName)
+	VALUES($runId,'setup.R',$(date '+%s'),2,'R packages installed')"
+echo -e " - R and dependent packages are present"
 
 echo -e "   ... finished\n"
 finalMessage=" All dependencies seem to be present\n"

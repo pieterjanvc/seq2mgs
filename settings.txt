@@ -5,7 +5,7 @@
 #  ex.1: var=test 1; NOT var="test 1"
 #  ex.2: var=test "test" test; NOT "test \"test\" test"
 #
-# Make sure Rscript, sqlite3, bbmap/ and sratoolkit/ are in $PATH
+# Make sure Rscript, sqlite3, bbmap/ and sratoolkit/bin are in $PATH
 
 --- GENERAL SETTINGS
 sraDownloadFolder=
