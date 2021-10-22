@@ -7,7 +7,7 @@
            ||    |||||   ||   ||      ||   || | || ||        ||   
             ||   ||      ||   ||    ||     || | || || |||     ||  
              ||  ||      ||   ||   ||      ||   || ||  ||      || 
-         |||||   ||||||   |||||   ||||||   ||   || ||||||  ||||| 
+         |||||   ||||||   |||||   |||||||  ||   ||  ||||   ||||| 
                             ||                                   
                              ||                                  
     ----------    github.com/pieterjanvc/seq2mgs/releases    -------------
@@ -124,9 +124,9 @@ This is a comma separated CSV file with the following columns
 EXAMPLE CSV FILE 
 ```
 type,sampleName,relativeAbundance,readFile,readFile2,getFromSRA
-I,isolate_1,0.1,~/isolate1_1.fastq.gz,~/isolate1_2.fastq.gz,
+I,isolate_1,0.1,/path/isolate1_1.fastq.gz,/path/isolate1_2.fastq.gz,
 I,isolate_2,0.3,,,SRR3222075
-B,background,,,~/metagenome.fastq.gz,,
+B,background,,,/path/metagenome.fastq.gz,,
 ```
 
 isolate_1: RA 10%, 2 local input files

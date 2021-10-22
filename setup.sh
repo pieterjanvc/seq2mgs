@@ -108,8 +108,7 @@ echo -e " - bbmap is present"
 
 #Check if pigz is installed else use gzip (slower but same result)
 if [ -z `command -v pigz` ]; then 
-	echo -e " - pigz is not present. gzip will be used instead, but is slower"
-	message="pigz not found. gzip used instead"
+	message="pigz not found. gzip used instead (slower)"
 else
 	message="pigz is present"
 fi;

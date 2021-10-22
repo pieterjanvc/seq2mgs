@@ -158,6 +158,7 @@ tryCatch({
   
   #Check if limits are used correctly
   sumRA = ""
+  limIssues = ""
   if("coverage" %in% allCols){
     if(minBases > 0 | maxBases < Inf){
       limIssues = "*** The u|l limit arguments do not apply here (used with relative abundance): 

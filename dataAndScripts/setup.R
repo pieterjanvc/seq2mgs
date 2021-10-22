@@ -24,7 +24,7 @@ if(!stringr::str_detect(as.character(packageVersion("dplyr")), "^1")){
 }
 
 #Check dependencies ($PATH in R can be different)
-for(dep in c("reformat.sh", "fasterq-dump")){
+for(dep in c("reformat.sh")){
   if(system(sprintf("if [ -z `command -v %s` ]; then echo ERROR; else echo OK; fi",
                     dep), 
             intern = T) == "ERROR"){
