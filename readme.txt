@@ -1,16 +1,16 @@
 
-     ------------------  Developed by PJ Van Camp  ------------------------
+    ------------------  Developed by PJ Van Camp  ------------------------
 
-           ||||   ||||||   |||||   |||||   ||   ||  ||||    ||||  
-          ||  ||  ||      ||  ||  |||  ||  ||  ||| ||  ||  ||  || 
-          |||     ||      ||  ||       ||  ||||||| ||      |||    
-            ||    |||||   ||  ||      ||   || | || ||        ||   
-             ||   ||      ||  ||    ||     || | || || |||     ||  
-              ||  ||      ||  ||   ||      ||   || ||  ||      || 
-          |||||   ||||||   |||||  ||||||   ||   || ||||||  ||||| 
-                             ||                                   
-                              ||                                  
-     ----------    github.com/pieterjanvc/seq2mgs/releases    -------------
+          ||||   ||||||   |||||    |||||   ||   ||  ||||    ||||  
+         ||  ||  ||      ||   ||  |||  ||  ||  ||| ||  ||  ||  || 
+         |||     ||      ||   ||       ||  ||||||| ||      |||    
+           ||    |||||   ||   ||      ||   || | || ||        ||   
+            ||   ||      ||   ||    ||     || | || || |||     ||  
+             ||  ||      ||   ||   ||      ||   || ||  ||      || 
+         |||||   ||||||   |||||   ||||||   ||   || ||||||  ||||| 
+                            ||                                   
+                             ||                                  
+    ----------    github.com/pieterjanvc/seq2mgs/releases    -------------
    
 
 --- SETUP.SH ---
@@ -72,23 +72,22 @@ Arguments [h|i|o|l|u|a|b|d|m|t|f|v]
  -v (optional) TRUE or FALSE. Progress is posted to stdout when TRUE.
      Default can be changed in the settings.txt file
  
-# Mix-in based on relative abundance (optional)
- -l (optional) The min number of bases the mixed file should contain. 
-     By default, the number of bases in the background file is chosen.
-     If no background file is present, the limit is the max sum of 
-	 the fractions needed from each isolate file.
- -u (optional) The max number of bases the mixed file should contain. 
-     By default, the number of bases in the background file is chosen.
-     If no background file is present, the limit is the sum of 
-	 the fractions needed from each isolate file.
+# File size limits for relative abundance (optional)
+ -l (optional) The min number of bases the mixed file should contain
+ -u (optional) The max number of bases the mixed file should contain
+     
+   By default, file size is defined by the number of bases in the background 
+    file. If no background file is present, file size is defined as the maximum 
+    number of reads that can be used from each file without resampling
 	 
-# Mix-in based on coverage (optional)
- -a (optional) The min number of bases the background should contain. 
-     By default, the number of bases is the difference between the 
-	 bases used for the isolates and the bases in the background
- -b (optional) The max number of bases the background should contain. 
-     By default, the number of bases is the difference between the 
-	 bases used for the isolates and the bases in the background
+# Background limits for coverage (optional)
+ -a (optional) The min number of bases the background should contain
+ -b (optional) The max number of bases the background should contain
+   
+  By default, the number of bases is the difference between the
+   bases used for the isolates and the bases in the original background. 
+   Note that when no backgound is present, the file size is dependent on the 
+   coverage settings and cannot be changed otherwise
 
 
 ### INPUT FILE FORMAT ###
@@ -98,10 +97,10 @@ This is a comma separated CSV file with the following columns
    * Minimum of 2 I files if no B file
    * Max 1 B file with 1 or more I files
  - sampleName (optional): custom name for the different input files
- - genomeSize (optional): The size of each genome in bp (e.g. 3.7e6) needed to 
- calculate correct genome coverage. If not set or missing values, defaults to
- value of argument -d. The value is left blank for background files (B) or 
- when working with relative abundance (column not needed)
+ - genomeSize (optional): The size of each genome in bp (e.g. 3.7e6) needed to
+    calculate correct genome coverage. If not set or missing values, defaults to
+    value of argument -d. The value is left blank for background files (B) or 
+    when working with relative abundance (column not needed)
 	
  DEPENDING ON PREFERENCE EITHER
   - relativeAbundance: RA of the file in the final metagenome (0-1).
@@ -118,7 +117,7 @@ This is a comma separated CSV file with the following columns
   OR
  - getFromSRA: fill in the SRR (leave readFile/readFile2 blank)
     The file will be downloaded from SRA if not found in the 
-	default download folder (location can be changed in settings.txt) 
+    default download folder (location can be changed in settings.txt) 
 	
  NOTE: any other columns will be ignored, but kept as meta-data
 
