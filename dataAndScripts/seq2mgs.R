@@ -160,13 +160,14 @@ tryCatch({
   sumRA = ""
   if("coverage" %in% allCols){
     if(minBases > 0 | maxBases < Inf){
-      finalMessage = paste(
-        finalMessage, 
-        "  NOTE: The set limits do not apply here, use the a|b arguments instead\n")
+      limIssues = "*** The u|l limit arguments do not apply here (used with relative abundance): 
+      use the a|b arguments instead. See help for details"
     }
     
     if(!class(files$coverage) %in% c("numeric", "integer")){
       sumRA = "*** The coverage needs to be a numeric value"
+    } else if(any(is.na(files$coverage[files$type == "i"]))){
+      sumRA = "*** The coverage must be set for each isolate (i) file"
     } else if(any(files$coverage[files$type != "b"] <= 0)){
       sumRA = "*** The coverage of each isolate must be a numeric value > 0"
     }
@@ -204,9 +205,8 @@ tryCatch({
     }
     
     if(minBackBases > 0 | maxBackBases < Inf){
-      finalMessage = paste(
-        finalMessage, 
-        "  NOTE: The set limits do not apply here, use the u|l arguments instead\n")
+      limIssues = "*** The a|b limit arguments do not apply here (used when working with coverage): 
+      use the u|l arguments instead. See help for details"
     }
   }
  
@@ -217,6 +217,14 @@ tryCatch({
     if(!class(files$genomeSize) %in% c("numeric", "integer")){
       gSize = "*** The genome size needs to be a numeric value"
     } else {
+      
+      if(any(is.na(files$genomeSize[files$type != "b"]))){
+        finalMessage = paste(
+          finalMessage, 
+          "  NOTE: the default genome size estimation of ", round(defGenomeSize / 1000000, 3), 
+          "Mbp\n   was used to calculate the coverage\n")
+      }
+      
       files = files %>% 
         mutate(
           genomeSize = as.integer(genomeSize),
@@ -231,14 +239,6 @@ tryCatch({
     }
     
   } 
-  
-  if(all(c("genomeSize", "coverage") %in% allCols)){
-    files$genomeSize = as.integer(ifelse(files$type == "b", NA, defGenomeSize))
-    finalMessage = paste(
-      finalMessage, 
-      "  NOTE: the default genome size estimation of ", round(defGenomeSize / 1000000, 3), 
-      "Mbp\n   was used to calculate the coverage\n")
-  }
   
   #Check if every input has a file / SRA assigned
   pickFile = ""
@@ -350,7 +350,7 @@ tryCatch({
   
   #Paste everything together
   errorMessage = c(sumRA, isoVsBack, uniqueFiles, pickFile, missing, gSize, 
-                   incorrectType, SRAexists)
+                   incorrectType, SRAexists, limIssues)
   errorMessage = paste(errorMessage[errorMessage != ""], collapse = "\n\n")
   
   
@@ -638,14 +638,22 @@ tryCatch({
   #Write the meta data as JSON (if requested)
   if(metaData){
 
+    limits = list()
+    
     if("relativeAbundance" %in% colnames(raData)){
-      limits = list(minBases = minBases, maxBases = maxBases)
+      
+      if(minBases > 0) limits = limits %>% append(c(minBases = minBases))
+      if(maxBases < Inf) limits = limits %>% append(c(maxBases = maxBases))
+      
+      # limits = list(minBases = minBases, maxBases = maxBases)
     } else {
       if("b" %in% raData$type){
-        limits = list(minBackBases = minBackBases, maxBackBases = maxBackBases)
-      } else {
-        limits = list()
-      }
+        
+        if(minBackBases > 0) limits = limits %>% append(c(minBackBases = minBackBases))
+        if(maxBackBases < Inf) limits = limits %>% append(c(maxBackBases = maxBackBases))
+        
+        # limits = list(minBackBases = minBackBases, maxBackBases = maxBackBases)
+      } 
     }
     
     metaData = list(
