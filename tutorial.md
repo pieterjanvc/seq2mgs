@@ -146,11 +146,7 @@ of SEQ2MGS
 * **seq2mgsDefaultGenomeSize**: The default genome size to use when the option 
 in the input file is blank (e.g. 3.7e6). Using a default genome size might result 
 in less accurate coverage estimates
-* **seq2mgsMaxResample**: When there are not enough reads in a file, SEQ2MGS 
-will resample until the desired number is reached. This value is a safeguard to 
-prevent the pipeline from copying a file over and over as is reduces the quality 
-of the output (duplicate reads contain no new information) and can take a very 
-long time  
+* **seq2mgsMaxResample**: If after read calculations there are not enough reads in a particular file, SEQ2MGS will resample until the desired number has been reached. The max resample limit is a safeguard to prevent the pipeline from copying a file over and over as it reduces the quality of the output (duplicate reads contain no new information) and can take a very long time. In most cases this will prevent mistakes made in the input, for example if the genome size is accidentally written as 3.5e7 instead of 3.5e6 when working with coverage and the pipeline would need a tenfold increase in reads
 * **seq2mgsMetaData**: TRUE / FALSE. Generate the json metadata file when 
 running the pipeline
 * **seq2mgsVerbose**: TRUE / FALSE. When true, progress is written to stdout

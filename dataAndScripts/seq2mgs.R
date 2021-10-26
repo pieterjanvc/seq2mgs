@@ -676,7 +676,7 @@ tryCatch({
                   filePath2 = ifelse(is.na(filePath[2]), "", filePath[2]), 
                   .groups = "drop") %>% 
         select(seqId, type:fileNeeded, readsUsed, sampleName, 
-               SRR = getFromSRA, fileName1:filePath2) %>% 
+               SRA = getFromSRA, fileName1:filePath2) %>% 
         mutate(type = ifelse(type == "i", "isolate", "background"))
     )
   
