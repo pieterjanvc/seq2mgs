@@ -505,12 +505,9 @@ tryCatch({
         sum(raData$readsNeeded[raData$type != "b"] * 
               raData$readLength[raData$type != "b"])
       
-      backBases = case_when(
-        backBases < minBackBases ~ minBackBases,
-        backBases > maxBackBases ~ maxBackBases,
-        TRUE ~ backBases
-      )
-      
+      backBases = ifelse(backBases < minBackBases, minBackBases, backBases)
+      backBases = ifelse(backBases > maxBackBases, maxBackBases, backBases)
+
       raData$readsNeeded[raData$type == "b"] = backBases /  
         raData$readLength[raData$type == "b"]
     }
@@ -530,11 +527,8 @@ tryCatch({
     }
     
     #Adjust if any limits set
-    totalBases = case_when(
-      totalBases < minBases ~ minBases,
-      totalBases > maxBases ~ maxBases,
-      TRUE ~ totalBases
-    )
+    totalBases = ifelse(totalBases < minBases, minBases, totalBases)
+    totalBases = ifelse(totalBases > maxBases, maxBases, totalBases)
     
     #Calculate the reads needed to reach the RA
     raData = raData %>% 
