@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS "logs" (
 CREATE TABLE IF NOT EXISTS "seqData" (
 	"seqId"	integer primary key,
 	"sampleName" text,
-	"readCount" integer NOT NULL,
+	"readCount" numeric NOT NULL,
 	"readLength" numeric NOT NULL,
 	"sampleType" text,
 	"description" text,
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS "mixDetails" (
 	"type" text NOT NULL,
 	"relativeAbundance" real,
 	"coverage" real,
-	"nReadsUsed" integer NOT NULL,
+	"nReadsUsed" numeric NOT NULL,
 	PRIMARY KEY("runId", "seqId"),
 	FOREIGN KEY("runId") REFERENCES "scriptUse"("runId") ON UPDATE CASCADE,
 	FOREIGN KEY("seqId") REFERENCES "seqData"("seqId") ON UPDATE CASCADE ON DELETE CASCADE

@@ -31,15 +31,15 @@ formatPath = function(path, endWithSlash = F){
 baseFolder = formatPath(as.character(args[[1]]))
 inputFile = as.character(args[[2]])
 outputFile = as.character(args[[3]])
-minBases = max(as.integer(args[[4]]), 0, na.rm = T)
-maxBases = min(as.integer(args[[5]]), Inf, na.rm = T)
+minBases = max(as.numeric(args[[4]]), 0, na.rm = T)
+maxBases = min(as.numeric(args[[5]]), Inf, na.rm = T)
 metaData = as.logical(args[[6]])
 verbose = as.logical(args[[7]])
 tempFolder = formatPath(as.character(args[[8]]))
 runId = as.integer(args[[9]])
-minBackBases = max(as.integer(args[[10]]), 0, na.rm = T)
-maxBackBases = min(as.integer(args[[11]]), Inf, na.rm = T)
-defGenomeSize = as.integer(args[[12]])
+minBackBases = max(as.numeric(args[[10]]), 0, na.rm = T)
+maxBackBases = min(as.numeric(args[[11]]), Inf, na.rm = T)
+defGenomeSize = as.numeric(args[[12]])
 oversample = T 
 
 #Grab the location of the sraDownloadFolder from the settings file
@@ -76,7 +76,7 @@ myConn = dbConnect(SQLite(), sprintf("%s/dataAndScripts/seq2mgs.db", baseFolder)
 readCounts = dbGetQuery(
   myConn, 
   "SELECT f.*, d.readCount, d.readLength FROM seqFiles as f, seqData as d WHERE f.seqId = d.seqId") %>% 
-  select(-folder) %>% mutate(fileSize = as.numeric(fileSize))
+  select(-folder) %>% mutate(across(c(fileSize, readCount, readLength), as.numeric))
 dbDisconnect(myConn)
 
 newLogs = data.frame(timeStamp = as.integer(Sys.time()), actionId = 1, 
@@ -451,7 +451,7 @@ tryCatch({
   
       #Count the lines in the file (4 lines = 1 read)
       nReads = system(sprintf("zcat %s | wc -l", myFile$filePath[1]), intern = T) %>%
-        as.integer()
+        as.numeric()
       #If pair-end file, total reads id double from counted in one
       nReads = ifelse(nrow(myFile) == 2, nReads / 2, nReads / 4)
       
@@ -482,12 +482,12 @@ tryCatch({
     cat(format(Sys.time(), "%H:%M:%S"),
         "- Calculate the number of reads needed from each file ... ")
   }
-  
+
   raData = files %>% 
     select(any_of(c("id", "type", "relativeAbundance", "readCount", 
                     "readLength", "genomeSize", "coverage"))) %>% 
     distinct()
-  
+
   #Make calculations based on scenario...
   if("coverage" %in% colnames(raData)){ ### COVERAGE BASED CALCULATIONS
     
@@ -546,6 +546,7 @@ tryCatch({
                                 "Number of reads needed from each file calculated"))
   
   #Check if the file times limit is not crossed
+
   check = raData$id[raData$fileNeeded > maxNfiles]
   if(length(check) > 0){
     check = files %>% filter(id %in% check) %>% pull(fileName)
@@ -595,10 +596,10 @@ tryCatch({
         partialFile, toMerge$file1[i], toMerge$file2[i], tempFolder), 
         intern = T)
       partialReads = str_extract(partialReads, "\\d+(?=\\sreads\\s\\()")
-      partialReads = as.integer(partialReads[!is.na(partialReads)])
+      partialReads = as.numeric(partialReads[!is.na(partialReads)]) %>% round(0)
       
       system(sprintf(
-        "rename.sh in=%s/partial.fastq.gz out=%s/tempFile%i_partial.fastq.gz ow=t prefix=fileId%i_partial_read 2>&1",
+        "rename.sh in=%s/partial.fastq.gz out=%s/tempFile%i_partial.fastq.gz int=t ow=t prefix=fileId%i_partial_read 2>&1",
         tempFolder, tempFolder, i, toMerge$id[i]), intern = T)
       
       system(sprintf("rm %s/partial.fastq.gz", tempFolder), intern = T)
@@ -818,7 +819,7 @@ finally = {
   dbDisconnect(myConn)
   
   #Remove temp files
-  system(paste("rm -r", tempFolder))
+  #system(paste("rm -r", tempFolder))
   
   if(verbose & finalMessage != ""){
     cat("\nMessages:\n", finalMessage)
