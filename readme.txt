@@ -30,7 +30,7 @@ The following software needs to be installed:
   * Precompiled versions: https://www.r-project.org/ 
     OR: https://docs.rstudio.com/resources/install-r/
 - bbmap
-  * jgi.doe.gov/data-and-tools/bbtools/bb-tools-user-guide/installation-guide/
+  * https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/installation-guide/
 - sratoolkit
   * https://github.com/ncbi/sra-tools
   * !! Make sure to configure the tool before using it!!
